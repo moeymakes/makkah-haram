@@ -1,0 +1,49 @@
+Build a real-time, realistic-but-painterly scene of the Mataf around the Kaaba in Masjid al-Haram, Makkah,
+seen at human scale. It only needs to look beautiful and let me walk (and, with a key, fly) through it.
+
+PRIORITIES (in this order when they conflict)
+1. Visual quality
+2. Stable frame pacing at the target spec
+3. Small bundle size
+
+CONSTRAINTS
+- No Three.js/Babylon.js or other engines. WebGPU rendered.
+- Everything procedural: no texture/model/audio files. Deliverable is a single self-contained index.html.
+  Report minified size.
+- Zero per-frame JS allocations (no GC stutter). Preallocate all buffers.
+- Sacred site: no human figures at all and no depiction of any person; the spaces are empty. No interiors:
+  never inside the Kaaba; its door stays closed. No synthesized adhan, talbiyah or Qur'an recitation; no
+  scripture or any other text rendered anywhere. The Kiswah band is a gold embroidered pattern that reads as
+  calligraphy from a distance but contains no legible words or letters; the clock tower carries no lettering.
+  Finials are stacked spheres with an upturned crescent, checked in silhouette. Buildings are respectful
+  approximations, not replicas; the geography is composed.
+
+TARGET
+- Omarchy Linux, Chrome 157, RTX 3070, 60 Hz+ monitor
+- 2560x1440 at full resolution. GPU frame time <= 11 ms average, p99 <= 16 ms during a scripted 60 s
+  fly-through.
+
+SCENE
+- The Kaaba in its black Kiswah with the gold embroidered band two-thirds up, the gold door raised above the
+  floor on the north-east wall, the Black Stone corner in its silver frame, the low curved wall of the Hijr
+  Ismail opposite the north-west wall, the gold water spout above it
+- Maqam Ibrahim in its gold-and-glass enclosure in front of the door
+- The Mataf: white marble that stays cool, polished, faintly mirroring
+- The Ottoman arcades around it: pointed arches on slender columns, each bay under a small dome with a
+  crescent finial; the later multi-storey arcades behind; many tall minarets
+- The Abraj al-Bait clock tower to the south, towering over everything, with plain clock faces (no lettering)
+- The bare granite mountains of the Makkah valley and the city on their slopes, fading into haze
+- Life: pigeons circling, dust in the low sun
+- Time menu: Dawn (default), Golden hour, Night (lit arcades, lamps, minaret lights, lit clock face, stars,
+  moon, readable shadows)
+
+CONTROLS
+WASD walk, mouse look (pointer lock, or drag), Shift to run, F toggles flight (E lifts off, Q lands)
+
+VERIFICATION
+- Visual critic subagent that sees ONLY the renders: 6 fixed poses at 2560x1440 plus flight frames.
+  Iterate until nothing above "minor" or 5 critic iterations.
+- GPU timestamp queries plus a frame-time log from the scripted fly-through: average, p99, max.
+
+DONE WHEN: both gates pass (or the iteration cap is reached). Deliver index.html, bundle size, perf report and
+the critic's final review.
