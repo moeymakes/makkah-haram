@@ -359,11 +359,12 @@ function frame(now) {
   const dtr = now - F[LAST]; F[LAST] = now;
   let dt = dtr / 1000; if (dt > 0.1) dt = 0.1;
   // dynamic resolution for 60 fps: every second (0.4 s behind the menu) scale the load by k
-  if (dtr < 1e3 && (dynT += dtr) > 0 && (dynN++, dynT > (menu ? 400 : 1000))) {
+  if (dtr < 1e3 && (dynT += dtr) > 0 && (dynN++, dynT > (menu ? 1000 : 1000))) {
     const a = dynT / dynN, g = dynGN ? dynG / dynGN : 0; let k = 1;
     if (g) { if (g > 13.6 || g < 9.8) k = 11.7 / g; }
     else if (a > 17.6) { dynOk = 0; if (++dynBad > 1) { k = 15 / a; dynBad = 0; dynWait = min(dynWait * 2, 60); } }
     else { dynBad = 0; if (a < 12.5) k = 15 / a; else if (++dynOk > dynWait) { k = 1.17; dynOk = 0; } }
+    if (abs(k - 1) < .12) k = 1; // small corrections are not worth a resize hitch
     k = k < 0.5 ? 0.5 : k > 1.7 ? 1.7 : k; const top = min(PIXMAX, DW * DH), mid = max(top / 2, PIXMIN), was = pix + det;
     if (k < 1 ? pix > mid || det <= DETMIN : pix < mid || det >= 1) {
       const end = k < 1 ? (det > DETMIN ? mid : PIXMIN) : det < 1 ? mid : top;
@@ -387,7 +388,7 @@ function frame(now) {
     const run = ks || tN > 1, mf = tId >= 0 ? 0.7 : kf - kb, mr = kr - kl, cp = cos(pitch), sy = sin(yaw), cw = cos(yaw);
     let vx, vy, vz;
     if (fly) {
-      const sp = run ? 40 : 11, k = 1 - exp(-dt * 3), mu = ku - kd;
+      const sp = run ? 80 : 22, k = 1 - exp(-dt * 3), mu = ku - kd;
       vx = F[VX] + ((sy * cp * mf + cw * mr) * sp - F[VX]) * k; vy = F[VY] + ((sin(pitch) * mf + mu) * sp - F[VY]) * k; vz = F[VZ] + ((-cw * cp * mf + sy * mr) * sp - F[VZ]) * k;
     } else {
       const sp = run ? 8 : 3.2, k = 1 - exp(-dt * 7), l = hypot(mf, mr) || 1, f2 = mf / max(l, 1), r2 = mr / max(l, 1);
@@ -401,6 +402,12 @@ function frame(now) {
     const n = floor(hypot(x - F[CX], y - F[CY], z - F[CZ]) / .3) + 1, mx = (x - F[CX]) / n, my = (y - F[CY]) / n, mz = (z - F[CZ]) / n;
     for (let i = 0; i < n; i++) { F[CX] += mx; F[CY] += my; F[CZ] += mz; collide(); }
     if (fly && kd && grounded) { fly = false; F[VY] = 0; }
+  }
+  // teaser: until the first Enter the camera rides the scripted path at half speed, fading at the loop
+  if (tour) {
+    F[FLT] = (F[FLT] + dt * .5) % FLYT; fly = true; F[VX] = F[VY] = F[VZ] = 0; flyAt();
+    const o = round(min(1, F[FLT] / 1.5, (FLYT - F[FLT]) / 1.5) * 20) / 20;
+    if (o !== tourO) { tourO = o; canvas.style.opacity = o; }
   }
   render();
   if (hud) {
@@ -447,7 +454,7 @@ const touch = (e) => {
 for (const n of ['touchstart', 'touchmove', 'touchend', 'touchcancel']) canvas.addEventListener(n, touch, { passive: false });
 
 // ---------------------------------------------------------------- menu: the scene keeps rendering, blurred, behind it
-let menu = true;
+let menu = true, tour = location.hash !== '#capture', tourO = 1;
 const bDive = $('d');
 const ui = (m) => {
   if (dead) return;
@@ -455,13 +462,14 @@ const ui = (m) => {
   if (m) { release(); setTimeout(() => menu && bDive.focus(), 100); } else document.activeElement.blur();
 };
 const go = () => {
+  if (tour) { tour = false; canvas.style.opacity = ''; pose(0); }
   sound(); ui(false); bDive.textContent = 'Resume';
   if (mob) document.documentElement.requestFullscreen?.()?.then(() => screen.orientation.lock('landscape')).catch(() => 0);
   if (!mob) capture();
 };
 bDive.onclick = go; $('o').onclick = () => ui(true); $('fl').onclick = () => { fly = !fly; F[VY] = 0; };
 $('q').querySelectorAll('button').forEach((b, i) => { if (i === 2 - LV) b.className = 'on'; else b.onclick = () => { keep('haram', 2 - i); location.reload(); }; });
-$('tod').querySelectorAll('button').forEach((b, i) => { if (i === TOD) b.className = 'on'; else b.onclick = () => { keep('haramTime', i); location.reload(); }; });
+$('tm').querySelectorAll('button').forEach((b, i) => { if (i === TOD) b.className = 'on'; else b.onclick = () => { keep('haramTime', i); location.reload(); }; });
 document.addEventListener('pointerlockchange', () => ui(!document.pointerLockElement));
 
 pose(0);
