@@ -327,14 +327,24 @@ fn archD(bu: f32, v: f32, hw: f32, ys: f32, R: f32) -> vec2f {
 // u: metres along the band, v: 0..1 across the line of "script", H: its height in metres. Returns coverage.
 fn script(u: f32, v: f32, H: f32, fw: f32, sd: f32) -> f32 {
   let y = (v - .34) * H;
-  var d = abs(y - .012 * sin(u * 23. + sd * 3.)) - .011;
+  var d = abs(y - .015 * sin(u * 23. + sd * 3.)) - .018;
   // uprights, slanted like thuluth and thinning toward the top
-  let us = u - max(y, 0.) * .3; let cw = .075; let ci = floor(us / cw); let xs = (fract(us / cw) - .5) * cw;
+  let us = u - max(y, 0.) * .3; let cw = .1; let ci = floor(us / cw); let xs = (fract(us / cw) - .5) * cw;
   let r1 = h2(vec2f(ci, sd)); let r2 = h2(vec2f(ci + 17.3, sd)); let r3 = h2(vec2f(ci - 9.1, sd * 1.7));
-  let top = H * (.36 + .26 * r2);
-  if (r1 < .46) { d = min(d, abs(xs - (r3 - .5) * .025) - .013 * (1. - .55 * sat(y / top)) + max(max(-y, y - top), 0.)); }
+  // uprights never stand alone: each ends in a leaf, or is joined to its neighbour by a pointed arch at the top,
+  // so the strokes read as an ornamental border and not as letters
+  for (var k = -1; k <= 0; k++) {
+    let c = ci + f32(k); let x = xs - f32(k) * cw;
+    let q1 = h2(vec2f(c, sd)); let q2 = h2(vec2f(c + 17.3, sd));
+    if (q1 < .5) {
+      let tp = H * (.4 + .2 * q2);
+      d = min(d, abs(x) - .022 * (1. - .4 * sat(y / tp)) + max(max(-y, y - tp), 0.));
+      if (q2 < .55) { d = min(d, abs(length(vec2f(x - cw * .5, max(y - tp, 0.) * 1.3)) - cw * .5) - .015 + max(tp - y, 0.) * 3.); }
+      else { d = min(d, abs(x) * 1.4 + abs(y - tp - .035) - .032); }
+    }
+  }
   // small loops sitting on the baseline
-  if (r1 > .62 && r1 < .8) { d = min(d, abs(length(vec2f(xs, y - .028)) - .024) - .008); }
+  if (r1 > .62 && r1 < .8) { d = min(d, abs(length(vec2f(xs, y - .034)) - .03) - .012); }
   // swashes: long shallow bowls under the baseline that rise at their ends, two neighbouring groups each
   let gw = .42; let gi = floor(u / gw);
   for (var k = -1; k <= 0; k++) {
@@ -343,13 +353,13 @@ fn script(u: f32, v: f32, H: f32, fw: f32, sd: f32) -> f32 {
       let a = gw * (.55 + .5 * hb); let b = H * (.14 + .12 * hg);
       let c = vec2f((g + .5 + (hb - .5) * .5) * gw, H * .06);
       let q = (vec2f(u, y) - c) / vec2f(a, b);
-      d = min(d, (abs(length(q) - 1.) * min(a, b)) - .01 + max(q.y, 0.) * b);
+      d = min(d, (abs(length(q) - 1.) * min(a, b)) - .017 + max(q.y, 0.) * b);
     }
   }
   // diamond dots above and below
-  if (r3 > .58) { let dy = select(-.2, .52, r2 > .4) * H; d = min(d, abs(xs - (r1 - .5) * .03) + abs(y - dy) - .011); }
+  if (r3 > .58) { let dy = select(-.2, .52, r2 > .4) * H; d = min(d, abs(xs - (r1 - .5) * .03) + abs(y - dy) - .02); }
   let c = sat(-d / max(fw, 1e-4) + .5);
-  return mix(c, .6, ss(.008, .03, fw));
+  return mix(c, .5, ss(.04, .11, fw));
 }
 // polished marble floor. rgb = albedo, a = polish. Mataf: very white; aisles: bands and a star per bay; plaza: paving
 fn floorMat(p: vec2f, fw: f32, vein: f32) -> vec4f {
@@ -551,7 +561,7 @@ fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
     let roundel = cov(abs(rd - .26), .025, fw3) + cov(abs(rd - .17), .012, fw3) + cov(rd, .06, fw3);
     let inScript = step(.32, abs(pu)) * step(abs(bv - .5), .36);
     let scr = script(u + select(0., 37., ne), (bv - .14) / .72, .62, fwop, floor(u / pw) + select(1., 7., ne) + select(0., 13., abs(on.z) > .7));
-    gold = max(gold, inB * min(1., edge + roundel * (1. - inScript) + scr * inScript + .12));
+    gold = max(gold, inB * min(1., edge + roundel * (1. - inScript) + scr * inScript + .04));
     // medallions beneath the band: a lantern-shaped outline round an eight-petalled rosette, two to each wall
     let pp = u - pw * 2. * (floor(u / (pw * 2.)) + .5);
     let mq = vec2f(pp / .55, (v - 7.45) / .62); let mr = length(mq); let ma = atan2(mq.y, mq.x);
@@ -579,7 +589,7 @@ fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
     alb = mix(alb, vec3f(.018), hem * .6);
     gold = max(gold, cov(abs(v - .78), .02, fwop) + cov(length(vec2f(fract(u / .7) - .5, (v - .45) / .7) * .7), .035, fwop));
     // corners: a gold medallion at band height on every vertical edge
-    let ce = min(KH.x - abs(i.op.x), KH.z - abs(i.op.z));
+    let ce = select(KH.x - abs(i.op.x), KH.z - abs(i.op.z), abs(on.x) > .7);
     gold = max(gold, cov(ce, .25, fw3) * inB * .8);
     let th = (1. - ss(.004, .02, fw3)) * (.75 + .25 * sin((u * 40. + v * 40.)));
     alb = mix(alb, vec3f(.98, .70, .30) * (.8 + .2 * th), gold); metal = gold; gloss = mix(gloss, .5, gold);

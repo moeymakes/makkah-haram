@@ -14,7 +14,8 @@ Built with the `worldsmith` skill (`~/.shared/skills/worldsmith`), starting from
   (iter-01), 4.87/6.66/7.45 (iter-09). Frame 16.67 ms (headless vsync).
 - index.html captured at High and Low (--storage haram=2) for each Time (--storage haramTime=0|1|2): 0 console
   errors in all six (verify/final-index-t*-q*). capture.mjs here accepts repeated --storage.
-- Changes after the last critic (not re-judged): whiter Hatim, warm floor bounce on the lower Kiswah, night exposure
+- Changes after the last critic (not re-judged): band bug fixed (a corner-medallion term filled the whole band with gold,
+  hiding the embroidery), bolder strokes with arched or leaf tops so no upright stands alone as a letter, whiter Hatim, warm floor bounce on the lower Kiswah, night exposure
   1.7 and floodlight .36, golden-hour exposure .42 and normal haze, pigeons roost at night.
 - Not done: touch controls and audio untested by ear; real-window frame pacing and heap check; no GitHub.
 

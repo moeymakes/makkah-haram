@@ -1,6 +1,6 @@
 Fly-through 2560x1440, 3601 frames
 frame  avg 16.67  p99 16.80  max 16.80 ms
-GPU    avg 5.23  p99 9.11  max 10.01 ms
+GPU    avg 4.19  p99 9.03  max 9.14 ms
 
 adapter: nvidia ampere  fallback=false
 viewport: 2560x1440
