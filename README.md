@@ -44,6 +44,11 @@ It needs a browser with **WebGPU**.
 - **The Kaaba**: black silk with a woven pattern that shows in its sheen, the gold band two-thirds up, gold medallions
   beneath it, the gold door raised above the floor in its embroidered surround, the sloped marble base, the gold
   water spout over the Hijr, and the Black Stone corner in its silver frame
+- **The belt's verses in real Arabic**, one on each wall, read right to left as you face it: 2:125 on the door
+  wall, 3:96 between the two corners, 22:26 on the south-west wall, 2:197 on the Hijr side. The text is the
+  Uthmani Hafs text from [quran.ai](https://quran.ai), copied byte for byte by `source/text/make-kiswah.mjs`, and set
+  in Noto Naskh Arabic. The real belt is hand-composed Thuluth Jali by the calligraphers of the King Abdulaziz
+  Complex for the Kiswa; this is a clear typeset rendering of the same verses, not a copy of their artwork
 - **The Hijr Ismail** and **Maqam Ibrahim**, the white **Mataf** that mirrors the Kaaba
 - **The Ottoman arcades**: pointed arches with banded voussoirs on slender marble columns, a small dome with a
   crescent finial over every bay, lanterns in the arches; you can walk their aisles
@@ -118,3 +123,5 @@ cd source && npm install && npm run build
 ## License
 
 MIT. Parts adapted from Abyssal Garden (MIT); its notice is in `source/LICENSE-abyssal-garden`.
+The embedded font is a subset of Noto Naskh Arabic Bold, Copyright 2022 The Noto Project Authors, under the SIL Open
+Font License 1.1 (`source/text/OFL-NotoNaskhArabic.txt`).
