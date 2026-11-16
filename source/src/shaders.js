@@ -218,6 +218,7 @@ const S_B = S_G + /*wgsl*/`
 @group(0) @binding(4) var tSh: texture_depth_2d;
 @group(0) @binding(5) var tD: texture_2d<f32>;
 @group(0) @binding(8) var tF: texture_2d<f32>;
+@group(0) @binding(9) var tK: texture_2d<f32>;
 fn shUV(p: vec3f) -> vec3f { let s = g.sm * vec4f(p, 1.); return vec3f(s.x * .5 + .5, .5 - s.y * .5, s.z - .0003); }
 fn shK(s: vec3f) -> f32 { let e = min(min(s.x, 1. - s.x), min(s.y, 1. - s.y)); return ss(0., .01, e) * step(s.z, 1.); }
 fn shadow1(p: vec3f) -> f32 { let s = shUV(p); return mix(1., textureSampleCompareLevel(tSh, sS, s.xy, s.z), shK(s)); }
@@ -551,17 +552,17 @@ fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
     let tg = select(vec3f(1., 0., 0.), vec3f(0., 0., 1.), abs(on.x) > .7);
     pert = tg * (.07 * sin(u * 2.3 + 1.4 * sin(v * .31 + u)) + .035 * sin(u * 6.1 + v * .5)) * (1. - .7 * ss(BAND.x - .5, BAND.x, v) * ss(BAND.y + .5, BAND.y, v));
     var gold = 0.;
-    // the band: a gold frame, cartouches of script, a roundel between each pair
+    // the band: a gold frame round the verses of the belt (verified text baked into tK, one row per wall, laid out
+    // so it reads right to left for someone facing that wall)
     let inB = step(BAND.x, v) * step(v, BAND.y);
     let bv = (v - BAND.x) / (BAND.y - BAND.x);
     let edge = max(cov(abs(bv - .06) * .95, .012, fw3), cov(abs(bv - .94) * .95, .012, fw3));
     let pw = select(KH.x * .5, KH.z * .5, ne || on.x < -.7);
-    let pu = u - pw * (floor(u / pw) + .5);
-    let rd = length(vec2f(pu, (bv - .5) * .95));
-    let roundel = cov(abs(rd - .26), .025, fw3) + cov(abs(rd - .17), .012, fw3) + cov(rd, .06, fw3);
-    let inScript = step(.32, abs(pu)) * step(abs(bv - .5), .36);
-    let scr = script(u + select(0., 37., ne), (bv - .14) / .72, .62, fwop, floor(u / pw) + select(1., 7., ne) + select(0., 13., abs(on.z) > .7));
-    gold = max(gold, inB * min(1., edge + roundel * (1. - inScript) + scr * inScript + .04));
+    let side = select(select(select(3., 2., on.x < -.7), 1., on.z > .7), 0., on.x > .7);
+    let ra = select(select(select(-i.op.x, i.op.z, on.x < -.7), i.op.x, on.z > .7), -i.op.z, on.x > .7);
+    let kuv = vec2f(.5 + ra / (2. * select(KH.x, KH.z, abs(on.x) > .7)), (side + 1. - clamp(bv, .01, .99)) * .25);
+    let txt = textureSampleLevel(tK, sC, kuv, log2(max(fw3 * 380., 1.)) - .35).a;
+    gold = max(gold, inB * min(1., edge + txt + .04));
     // medallions beneath the band: a lantern-shaped outline round an eight-petalled rosette, two to each wall
     let pp = u - pw * 2. * (floor(u / (pw * 2.)) + .5);
     let mq = vec2f(pp / .55, (v - 7.45) / .62); let mr = length(mq); let ma = atan2(mq.y, mq.x);
@@ -575,14 +576,12 @@ fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
     if (ne) {
       let du = u - DOOR.x; let dv = v;
       let inS = step(abs(du), 2.2) * step(1.75, dv) * step(dv, 8.25);
-      let rows = fract((dv - 1.75) / .9);
-      let dense = script(u * 1.15 + 5., rows, .62, fwop, floor((dv - 1.75) / .9) + 41.) * step(.12, rows) * step(rows, .88);
       let fr = max(cov(abs(abs(du) - 2.12), .05, fw3), cov(abs(abs(du) - 1.85), .02, fw3));
       let ah = archD(du, dv, 1.5, 6.1, 1.9);
       let head = cov(abs(ah.x), .04, fw3) * step(-.5, ah.y);
       let rq = fract(vec2f(du, dv) / .28) - .5; let rqd = length(rq) * .28;
       let lat = max(cov(abs(rqd - .09), .012, fwop), cov(rqd, .025, fwop)) + cov(abs(abs(rq.x) + abs(rq.y) - .5) * .2, .006, fwop);
-      gold = max(gold, inS * min(1., fr + head + dense * step(ah.x, -.12) + (lat * .85 + .1) * step(-.12, ah.x)));
+      gold = max(gold, inS * min(1., fr + head + lat * .85 + .1));
     }
     // the hem: a darker band near the base, tied down with brass rings
     let hem = step(v, .78) * step(.3, v);

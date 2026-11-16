@@ -1,0 +1,4 @@
+Noto Naskh Arabic Bold, subset to the characters of the verses in verses.json (naskh-subset.woff).
+Copyright: Copyright 2022 The Noto Project Authors (https://github.com/notofonts/arabic)
+License: This Font Software is licensed under the SIL Open Font License, Version 1.1. This license is available with a FAQ at: https://openfontlicense.org
+License URL: https://openfontlicense.org

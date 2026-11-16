@@ -42,6 +42,8 @@ const tShadow = tex(SHADOW, SHADOW, DEPTH, TU.RENDER_ATTACHMENT | TU.TEXTURE_BIN
 const tDummy = tex(1, 1, DEPTH, TU.RENDER_ATTACHMENT | TU.TEXTURE_BINDING);
 const tDetail = tex(1024, 1024, 'rgba8unorm', TU.RENDER_ATTACHMENT | TU.TEXTURE_BINDING, { mips: 11 });
 const tFar = tex(FN, FN, 'rgba8unorm', TU.TEXTURE_BINDING | TU.COPY_DST);
+// the Kiswah's belt text: one 4096 x 384 row per wall (+x, +z, -x, -z), white glyphs on clear, full mip chain
+const KTW = 4096, KTH = 384, tKiswah = tex(KTW, KTH * 4, 'rgba8unorm', TU.TEXTURE_BINDING | TU.COPY_DST | TU.RENDER_ATTACHMENT, { mips: 13 });
 
 const UB = new Float32Array(60), UBS = new Float32Array(60);
 const ubo = device.createBuffer({ size: 240, usage: BU.UNIFORM | BU.COPY_DST }), uboS = device.createBuffer({ size: 240, usage: BU.UNIFORM | BU.COPY_DST });
@@ -49,10 +51,10 @@ const VF = SS.VERTEX | SS.FRAGMENT;
 const bgl0 = device.createBindGroupLayout({ entries: [
   { binding: 0, visibility: VF, buffer: {} },
   { binding: 1, visibility: VF, sampler: {} }, { binding: 2, visibility: VF, sampler: {} }, { binding: 3, visibility: VF, sampler: { type: 'comparison' } },
-  { binding: 4, visibility: VF, texture: { sampleType: 'depth' } }, { binding: 5, visibility: VF, texture: {} }, { binding: 8, visibility: VF, texture: {} }] });
+  { binding: 4, visibility: VF, texture: { sampleType: 'depth' } }, { binding: 5, visibility: VF, texture: {} }, { binding: 8, visibility: VF, texture: {} }, { binding: 9, visibility: VF, texture: {} }] });
 const mkBG0 = (u, sh) => device.createBindGroup({ layout: bgl0, entries: [
   { binding: 0, resource: { buffer: u } }, { binding: 1, resource: sRep }, { binding: 2, resource: sClamp }, { binding: 3, resource: sCmp },
-  { binding: 4, resource: sh.createView() }, { binding: 5, resource: tDetail.createView() }, { binding: 8, resource: tFar.createView() }] });
+  { binding: 4, resource: sh.createView() }, { binding: 5, resource: tDetail.createView() }, { binding: 8, resource: tFar.createView() }, { binding: 9, resource: tKiswah.createView() }] });
 const bg0 = mkBG0(ubo, tShadow), bg0s = mkBG0(uboS, tDummy);
 const pl0 = device.createPipelineLayout({ bindGroupLayouts: [bgl0] });
 
@@ -201,6 +203,45 @@ const shadowCast = []; for (let i = 0; i < NSOL; i++) if (!Wd.farIds.has(i) && i
   for (let i = 1; i < 11; i++) {
     r = e.beginRenderPass({ colorAttachments: [colorAtt(tDetail.createView({ baseMipLevel: i, mipLevelCount: 1 }), true)] });
     r.setPipeline(pMip8); r.setBindGroup(0, blitBG(tDetail.createView({ baseMipLevel: i - 1, mipLevelCount: 1 }))); r.draw(3); r.end();
+  }
+  Q.submit([e.finish()]);
+}
+// the belt text: the browser shapes the Arabic (joining, marks, ligatures) with an embedded font, so every device
+// draws the same glyphs; the verses are laid out in one to three justified lines, whichever gives the largest type
+{
+  const ff = new FontFace('KiswahNaskh', Uint8Array.from(atob(KISWAH_FONT), (c) => c.charCodeAt(0)).buffer);
+  await ff.load(); document.fonts.add(ff);
+  const cv = new OffscreenCanvas(KTW, KTH * 4), g = cv.getContext('2d');
+  g.fillStyle = '#fff'; g.direction = 'rtl'; g.textAlign = 'right'; g.textBaseline = 'middle';
+  const LH = 1.3;
+  KISWAH_BELT.forEach((t, row) => {
+    // a pause mark is a word of its own in the text, set over the space after a word; draw it on that word's end, as a
+    // printed mushaf does, so it stays inside the band and no line starts with one (the letters are unchanged)
+    const words = []; for (const w of t.split(' ')) { if (/^[ۖ-ۭ]+$/.test(w) && words.length) words[words.length - 1] += w; else words.push(w); }
+    const asp = row & 1 ? 5.2 / 6 : 1, W = KTW * .95 * asp, H = KTH * .86;
+    g.font = '100px KiswahNaskh'; const w100 = g.measureText(words.join(' ')).width;
+    let n = 1, px = 0;
+    for (let k = 1; k <= 3; k++) { const p = Math.min(W * k / w100 * 100 * .93, H / (k * LH)); if (p > px) { px = p; n = k; } }
+    g.font = `${px.toFixed(1)}px KiswahNaskh`;
+    // the split into n lines whose longest line is shortest
+    const wid = (a, b) => g.measureText(words.slice(a, b).join(' ')).width, N = words.length;
+    let best = [N], bw = wid(0, N);
+    if (n === 2) for (let a = 1; a < N; a++) { const m = Math.max(wid(0, a), wid(a, N)); if (m < bw) { bw = m; best = [a, N]; } }
+    if (n === 3) for (let a = 1; a < N - 1; a++) for (let b = a + 1; b < N; b++) { const m = Math.max(wid(0, a), wid(a, b), wid(b, N)); if (m < bw) { bw = m; best = [a, b, N]; } }
+    const lines = []; let a0 = 0; for (const b of best) { lines.push(words.slice(a0, b)); a0 = b; }
+    lines.forEach((ln, i) => {
+      const s = ln.join(' '), lw = g.measureText(s).width, gaps = ln.length - 1;
+      g.save(); g.translate(KTW / 2, KTH * (row + .5) + (i - (lines.length - 1) / 2) * px * LH + px * .08); g.scale(1 / asp, 1);
+      // justify every line to the same width, as the belt's lines are
+      if ('wordSpacing' in g) g.wordSpacing = gaps ? `${Math.min((bw - lw) / gaps, px * .8)}px` : '0px';
+      const fw = g.measureText(s).width; g.fillText(s, fw / 2, 0); g.restore();
+    });
+  });
+  Q.copyExternalImageToTexture({ source: cv }, { texture: tKiswah }, [KTW, KTH * 4]);
+  const e = device.createCommandEncoder();
+  for (let i = 1; i < 13; i++) {
+    const r = e.beginRenderPass({ colorAttachments: [colorAtt(tKiswah.createView({ baseMipLevel: i, mipLevelCount: 1 }), true)] });
+    r.setPipeline(pMip8); r.setBindGroup(0, blitBG(tKiswah.createView({ baseMipLevel: i - 1, mipLevelCount: 1 }))); r.draw(3); r.end();
   }
   Q.submit([e.finish()]);
 }
