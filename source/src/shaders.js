@@ -154,7 +154,7 @@ const LIGHTS = ${TD.lights.toFixed(2)};
 const SUN_ = vec3f(${SUN.map((v) => v.toFixed(4)).join(', ')});
 const NIGHT = ${NIGHT};
 const DAWN = ${TOD === 0};
-const BETA = vec3f(.8e-4, .98e-4, 1.25e-4) * ${TOD === 1 ? '1.25' : '1.'};
+const BETA = vec3f(.8e-4, .98e-4, 1.25e-4);
 const HSCALE = 300.;
 const TAU = 6.2831853;
 const S2 = .70710678;
@@ -164,7 +164,7 @@ const DOOR = vec4f(${DOORZ}, ${DOOR0}, ${DOOR1}, ${DOORW});
 const OT = vec2f(${OTX}., ${OTZ}.); const SA = vec2f(${SAX}., ${SAZ}.); const BAY = ${BAY}.;
 const CLOCK = vec2f(${CLOCK[0]}., ${CLOCK[1]}.);
 // floodlight colour for the Mataf at night (warm white, 3000 K-ish), and the lamp colour
-const FLOODC = vec3f(1., .88, .72) * ${NIGHT ? '.42' : '0.'};
+const FLOODC = vec3f(1., .88, .72) * ${NIGHT ? '.36' : '0.'};
 const LAMPC = vec3f(1., .66, .34);
 fn sat(x: f32) -> f32 { return clamp(x, 0., 1.); }
 fn ss(a: f32, b: f32, x: f32) -> f32 { let t = clamp((x - a) / (b - a), 0., 1.); return t * t * (3. - 2. * t); }
@@ -584,6 +584,7 @@ fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
     let th = (1. - ss(.004, .02, fw3)) * (.75 + .25 * sin((u * 40. + v * 40.)));
     alb = mix(alb, vec3f(.98, .70, .30) * (.8 + .2 * th), gold); metal = gold; gloss = mix(gloss, .5, gold);
     sheen = (.1 + .08 * weave) * (1. - gold);
+    emi += vec3f(.9, .82, .7) * .02 * (GND + SUNC * .2) * ss(9., 0., v) * (1. - gold) * select(1., .3, NIGHT);
     if (on.y > .7) { alb = vec3f(.60, .58, .55) * (.9 + .15 * B.h); gloss = .2; metal = 0.; sheen = 0.; }
     if (on.y < -.7) { alb = vec3f(.05); }
   } else if (mat == 31) {
@@ -651,7 +652,7 @@ fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
   } else if (mat == 36) {
     alb = vec3f(.86, .86, .84) * (.95 + .06 * B.h); gloss = .55; bump = .03;
     alb = mix(alb, vec3f(.62, .62, .64), (1. - ss(.0, .03, abs(C.h - .52))) * .22);
-    if (i.m.w > 1.5 && i.m.w < 2.5) { alb = mix(alb, vec3f(.5, .5, .52), cov(abs(fv - 1.12), .03, fwop) + cov(abs(fv - .18), .05, fwop)); }
+    if (i.m.w > 1.5 && i.m.w < 2.5) { alb = vec3f(.92, .91, .89) * (.97 + .04 * B.h); gloss = .7; alb = mix(alb, vec3f(.55, .55, .57), cov(abs(fv - 1.12), .03, fwop) + cov(abs(fv - .18), .05, fwop)); }
   } else if (mat == 37) {
     let rib = cov(abs(fract(atan2(i.op.z - floor(i.op.z / BAY) * BAY - BAY * .5, i.op.x - floor(i.op.x / BAY) * BAY - BAY * .5) / TAU * 16.) - .5), .04, fw3 * 2.);
     alb = vec3f(.70, .69, .66) * (.92 + .1 * B.h) * (1. - .12 * rib); gloss = .15; bump = .08;

@@ -9,8 +9,8 @@
 // time of day: the key light (the moon at night), sky colours, exposure and how bright the lamps are
 const TODS = [
   { az: 68, el: 16, sunc: [2.8, 1.62, 1.0], zen: [.13, .24, .54], horL: [1.45, .82, .52], horF: [.80, .68, .72], gnd: [.80, .68, .58], expo: .55, rays: 1, lights: .2 },
-  { az: 250, el: 24, sunc: [2.9, 2.1, 1.35], zen: [.10, .24, .58], horL: [1.35, .84, .44], horF: [.74, .68, .66], gnd: [.86, .70, .52], expo: .5, rays: 1, lights: 1 },
-  { az: 140, el: 35, sunc: [.16, .19, .27], zen: [.004, .008, .022], horL: [.05, .045, .05], horF: [.02, .025, .04], gnd: [.05, .045, .04], expo: 2.4, rays: 0, lights: 6 },
+  { az: 250, el: 24, sunc: [2.9, 2.1, 1.35], zen: [.10, .24, .58], horL: [1.35, .84, .44], horF: [.74, .68, .66], gnd: [.86, .70, .52], expo: .42, rays: 1, lights: 1 },
+  { az: 140, el: 35, sunc: [.16, .19, .27], zen: [.004, .008, .022], horL: [.05, .045, .05], horF: [.02, .025, .04], gnd: [.05, .045, .04], expo: 1.7, rays: 0, lights: 6 },
 ];
 const TD = TODS[TOD], NIGHT = TOD === 2;
 const SUN = (() => { const a = TD.az * PI / 180, e = TD.el * PI / 180; return [sin(a) * cos(e), sin(e), -cos(a) * cos(e)]; })();
@@ -388,13 +388,12 @@ function makeWorld(FAR, flyPts) {
 
   // --- the larger expansions beyond: flat-roofed blocks, their facades painted with arcades
   const ex = new Mesh();
-  const exD = new Mesh();
   for (const [x0, z0, x1, z1, h] of [[SAX + SAD, -140, 150, 120, 17], [-150, -130, -SAX - SAD, 140, 17], [-SAX - SAD, SAZ + SAD, 110, 165, 16], [-110, -175, SAX + SAD, -SAZ - SAD, 18]]) {
     box(ex, x0, 0, z0, x1, h, z1);
     merlons(ex, x0, z0, x1, z0, h, 1.8, 1.1); merlons(ex, x0, z1, x1, z1, h, 1.8, 1.1); merlons(ex, x0, z0, x0, z1, h, 1.8, 1.1); merlons(ex, x1, z0, x1, z1, h, 1.8, 1.1);
     // a few roof domes and stair houses break the long flat roofs
   }
-  local(ex, 7, 1, .5); local(exD, 37, 1);
+  local(ex, 7, 1, .5);
 
   // --- minarets: square shafts rising from the expansions, octagonal stages, crescent finials
   const mIds = MKS.map((k) => add(meshMinaret(MINARET_N, 9, 30, k)));

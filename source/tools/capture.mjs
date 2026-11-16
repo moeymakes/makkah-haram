@@ -47,8 +47,9 @@ const ctx = browser.contexts()[0] || await browser.newContext();
 const page = await ctx.newPage();
 await page.setViewportSize({ width: W, height: H });
 await page.addInitScript({ path: path.join(here, 'grab-shim.js') });
-const seed = opt('storage', '');
-if (seed) await page.addInitScript(([k, v]) => { if (!sessionStorage.seeded) { localStorage.setItem(k, v); sessionStorage.seeded = 1; } }, seed.split('='));
+// --storage may repeat (e.g. a detail level and a time of day)
+const seeds = argv.flatMap((v, i) => (argv[i - 1] === '--storage' ? [v.split('=')] : []));
+if (seeds.length) await page.addInitScript((kv) => { if (!sessionStorage.seeded) { for (const [k, v] of kv) localStorage.setItem(k, v); sessionStorage.seeded = 1; } }, seeds);
 const run = { file: path.resolve(file), size: `${W}x${H}`, errors: [], warnings: [], shots: [] };
 page.on('console', (m) => { if (m.type() === 'error') run.errors.push(m.text()); else if (m.type() === 'warning') run.warnings.push(m.text()); });
 page.on('pageerror', (e) => run.errors.push('pageerror: ' + e.message));

@@ -6,12 +6,41 @@ Built with the `worldsmith` skill (`~/.shared/skills/worldsmith`), starting from
 
 ## State (update after every step)
 
-- Phase: 5 (critic loop). World built: Kaaba + Kiswah, Hijr, Maqam, Black Stone frame, Mizab, Ottoman arcade
-  (domes, lanterns), three-storey later arcade, expansions, 13 minarets, clock tower, city, valley, pigeons,
-  Time presets (Dawn/Golden hour/Night), Sound row. Ottoman rectangle compressed to |x|<40, |z|<55 (Kaaba frame).
-- Last capture: verify/iter-01 (dev.html, 2560x1440, running)
-- Next step: critic iteration 1 on iter-01, then fix, iterate (cap: 5 critic iterations)
-- Not committed yet.
+- Phase: 7 (delivered locally, committed, nothing pushed). Critic loop stopped by the brief's rule: 5 critic
+  iterations (on iter-02, 05, 06, 08, 10), highest severity "major" every time. Gate 1 NOT passed; gate 2 passes.
+- index.html: 87.5 kB, 36.1 kB gzipped. Load to menu ~0.8 s headless.
+- Perf (verify/final-dev/perf.txt, dev.html, 2560x1440, 60 s flight, RTX 3070 shared with other worlds rendering at
+  the same time, ~37% busy at the start): GPU avg 5.23 ms, p99 9.11, max 10.01. Earlier runs: 5.54/9.91/11.55
+  (iter-01), 4.87/6.66/7.45 (iter-09). Frame 16.67 ms (headless vsync).
+- index.html captured at High and Low (--storage haram=2) for each Time (--storage haramTime=0|1|2): 0 console
+  errors in all six (verify/final-index-t*-q*). capture.mjs here accepts repeated --storage.
+- Changes after the last critic (not re-judged): whiter Hatim, warm floor bounce on the lower Kiswah, night exposure
+  1.7 and floodlight .36, golden-hour exposure .42 and normal haze, pigeons roost at night.
+- Not done: touch controls and audio untested by ear; real-window frame pacing and heap check; no GitHub.
+
+## Critic history
+
+| Iter (capture) | Highest | Main changes after it |
+|---|---|---|
+| 1 (iter-02) | major | contact shade, softer reflection, Kiswah folds and hem, abstract script redesign, medallions, slimmer columns, Abraj crowns |
+| 2 (iter-05) | major | clock tower moved off the Kaaba's axis, Mataf widened, pointed upper arches, plain parapet, sky glow, wider PCF |
+| 3 (iter-06) | major | the sun reaches the Mataf: later arcade two storeys, dawn sun 16 deg; floor veining; overhead flight ending |
+| 4 (iter-08) | major | expansions lowered so the sun reaches the upper Kaaba, soft (4-ray) Kaaba mirror, large-format seams, silk sheen in shade |
+| 5 (iter-10) | major | (stopped: 5 critic iterations) |
+
+Recurring and still open (iter-10): the aerial city reads as boxes; Kaaba shade faces very dark; Hatim reads as a tub;
+Maqam speculars; door surround reads busy; floor reads plain. Treated as noise: the floor reflection was called "a hard
+smear" (iter 3-4) and then "very weak" (iter 5) on the same element; the Black Stone and Hatim were raised every round.
+The critic's "band at 75-85% of the height" (iter 2) is wrong: it is at 66-73%.
+
+## Decisions taken unattended
+
+- Ottoman rectangle |x|<45, |z|<60 in the Kaaba frame, the later arcade two storeys (19 m), the expansions 16-18 m:
+  with three storeys and 32 m expansions the whole Mataf is in shade until the sun is ~27 deg up, which the critic
+  read as flat overcast light. Composed, noted in the README.
+- Dawn sun 16 deg (the time-of-day reference starts at 5-7): the upper Kaaba and the western arcades are lit, the
+  east of the Mataf in shade. Golden hour 24 deg from the WSW.
+- No pigeons on the floor: at this mesh size they read as pebbles (iter-05); they circle over the arcades instead.
 
 ## Facts (checked once, 2026-11-16) and what the scene does with them
 
@@ -32,9 +61,9 @@ local rotated 45 degrees about y. So the corners point roughly at the compass po
 | Maqam Ibrahim | about 10-11 m east of the door, crystal dome in a gilded metal mesh, top cover ~1.30 m (Arab News "ThePlace: Maqam Ibrahim"; Saudipedia "Maqam Ibrahim") | gold cage and glass bell on a marble plinth, ~2.7 m tall, 11 m in front of the door |
 | Mataf floor | Thassos marble from Greece, very white, stays cool (Arab News "Why the marble flooring ... remains cool"; Saudi Gazette) | white polished marble, faint grey veins and joints, mirrors the Kaaba and the arcades |
 | Ottoman arcades | Sinan's renovation (1570s) raised domes on marble columns round the courtyard; parts altered in the 2011 expansion (Wikipedia "Great Mosque of Mecca"; archup.net) | two rows of pointed arches on slender marble columns, every bay under a small dome with a crescent finial. Bay count and plan composed |
-| Later arcades | multi-level expansions (Wikipedia "Great Mosque of Mecca") | a three-storey round-arched marble arcade behind the Ottoman one, larger flat-roofed expansions beyond |
+| Later arcades | multi-level expansions (Wikipedia "Great Mosque of Mecca") | a two-storey pointed-arch marble arcade behind the Ottoman one, lower flat-roofed expansions beyond (heights composed, see Decisions) |
 | Minarets | 13 listed, the tallest 139 m (Wikipedia "Great Mosque of Mecca" infobox) | 13: nine of ~89 m round the old ring, four of ~139 m on the north side. Positions composed |
-| Clock tower | Makkah Royal Clock Tower, 601 m, completed 2012, about 500 m from the Kaaba across the plaza south of the King Abdulaziz Gate (Wikipedia "Abraj Al Bait"; archive.mv) | 601 m, ~430 m SSW, four plain clock faces with ticks and hands only, gold crescent finial. No lettering |
+| Clock tower | Makkah Royal Clock Tower, 601 m, completed 2012, about 500 m from the Kaaba across the plaza south of the King Abdulaziz Gate (Wikipedia "Abraj Al Bait"; archive.mv) | 601 m, ~555 m SSW (azimuth ~205), four plain clock faces with ticks and hands only, gold crescent finial. No lettering |
 | Surroundings | Makkah sits in a valley ringed by granite mountains | composed valley: granite ridges from ~600 m out, the city and hotel towers on the floor and lower slopes |
 
 Uncertain or composed (also in the README): exact wall lengths and angles, the Hatim's curve, the Maqam's
@@ -64,7 +93,7 @@ through an arch into the NE Ottoman arcade, along it, out again and up to pose 6
 
 | | Dawn (default) | Golden hour | Night |
 |---|---|---|---|
-| Key | sun 6 deg up at azimuth 68 (ENE) | sun 9 deg up at 250 (WSW) | moon 35 deg up at 140 |
+| Key | sun 16 deg up at azimuth 68 (ENE) | sun 24 deg up at 250 (WSW) | moon 35 deg up at 140 |
 | Lights | x0.2 | x1 | x6, plus floodlit Mataf |
 
 ## Critic intent paragraph

@@ -307,7 +307,8 @@ function render() {
   r.setVertexBuffer(0, vbMesh); r.setIndexBuffer(ibMesh, 'uint32');
   for (let i = 0; i < NSOL; i++) { const g = Wd.solids.ranges[i]; if (g[1]) r.drawIndexed(meshes[i].ib.length, g[1], meshes[i].i0, meshes[i].v0, g[0]); }
   r.setVertexBuffer(0, vbFar); r.setIndexBuffer(ibFar, 'uint32'); r.drawIndexed(nFarI, 1, 0, 0, nSolid);
-  r.setPipeline(pBird); r.setVertexBuffer(0, vbMesh); r.setIndexBuffer(ibMesh, 'uint32'); r.setVertexBuffer(1, ibBirds); r.drawIndexed(BIRD.ib.length, nBirds, BIRD.i0, BIRD.v0, 0);
+  // pigeons roost at night
+  if (!NIGHT) { r.setPipeline(pBird); r.setVertexBuffer(0, vbMesh); r.setIndexBuffer(ibMesh, 'uint32'); r.setVertexBuffer(1, ibBirds); r.drawIndexed(BIRD.ib.length, nBirds, BIRD.i0, BIRD.v0, 0); }
   r.setPipeline(pSky); r.draw(4);
   if (!NIGHT) { r.setPipeline(pMote); r.setVertexBuffer(0, ibMotes); r.draw(4, nMotes); }
   r.end();
