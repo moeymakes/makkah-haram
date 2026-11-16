@@ -360,6 +360,8 @@ fn floorMat(p: vec2f, fw: f32, vein: f32) -> vec4f {
   var mataf = vec3f(.80, .795, .78) * (.975 + .04 * hh) * (.96 + .05 * vein);
   mataf = mix(mataf, vec3f(.62, .63, .65), vein * .3);
   mataf *= 1. - .38 * joint;
+  let jb = abs(fract(l / 4.8) - .5) * 4.8;
+  mataf *= 1. - .25 * max(cov(2.4 - jb.x, .008, fw), cov(2.4 - jb.y, .008, fw)) * (1. - ss(.02, .06, fw));
   // aisle: grey border band at each bay, a star in the middle of every bay
   let q = l - BAY * (floor(l / BAY) + .5); let aq = abs(q);
   let star = min(max(aq.x, aq.y) - 1.2, (aq.x + aq.y) * .70711 - 1.2);
@@ -403,12 +405,17 @@ fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
     let band = ss(1., 6., q.y) * ss(9., 7., q.y);
     col = mix(col, mix(vec3f(.70, .65, .57) * lit, vec3f(.3, .26, .21) * lit + LAMPC * LIGHTS * .05, band * .6), k * .85);
   }
-  let kh = kaabaHit(o, d);
-  if (kh.x > 0.) {
-    let band = step(BAND.x, kh.y) * step(kh.y, BAND.y);
-    let kc = mix(vec3f(.015, .015, .016) + lit * .006, vec3f(.95, .66, .26) * lit * .5, band);
-    col = mix(kc, col, .55 * ss(4., 40., kh.x));
+  var kr = vec3f(0.); var kw = 0.;
+  for (var j = 0; j < 4; j++) {
+    let jo = vec2f(f32(j & 1) - .5, f32(j >> 1) - .5) * .05;
+    let dj = normalize(d + vec3f(jo.x, 0., jo.y));
+    let kh = kaabaHit(o, dj);
+    if (kh.x > 0.) {
+      let band = ss(BAND.x - .2, BAND.x + .2, kh.y) * ss(BAND.y + .2, BAND.y - .2, kh.y);
+      kr += mix(mix(vec3f(.015, .015, .016) + lit * .006, vec3f(.95, .66, .26) * lit * .5, band), col, .55 * ss(4., 40., kh.x)); kw += 1.;
+    }
   }
+  col = mix(col, kr / max(kw, 1.), kw * .25);
   return col;
 }
 @fragment fn fs(i: VO, @builtin(front_facing) ff: bool) -> @location(0) vec4f {
@@ -467,7 +474,7 @@ fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
     bump = .05;
   } else if (mat == 25 || mat == 20) {
     // carved pale stone: ashlar courses; on the Ottoman arcade (w 1) alternating voussoirs round every arch
-    alb = select(vec3f(.80, .75, .66), vec3f(.84, .81, .75), mat == 20) * (.9 + .12 * B.h) * (.95 + .08 * C.c);
+    alb = select(vec3f(.80, .75, .66), vec3f(.84, .81, .75), mat == 20) * (.95 + .06 * B.h) * (.96 + .06 * C.c);
     let cj = max(cov(abs(fract(fv / .55) - .5) * .55 - .27, .005, fw3), cov(abs(fract(fu / 1.1 + floor(fv / .55) * .5) - .5) * 1.1 - .54, .005, fw3)) * wall;
     alb *= 1. - .25 * cj * (1. - ss(.02, .06, fw3));
     let xs = min(abs(abs(i.op.x) - OT.x - .3), abs(abs(i.op.x) - OT.x - 5.3)) < .5;
@@ -511,7 +518,7 @@ fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
     }
     bump = .05; gloss = .12;
   } else if (mat == 10) {
-    alb = vec3f(1., .74, .32); gloss = .85; metal = 1.; bump = 0.;
+    alb = select(vec3f(1., .74, .32), vec3f(.72, .5, .2), i.m.w > .5); gloss = select(.85, .5, i.m.w > .5); metal = 1.; bump = 0.;
   } else if (mat == 22) {
     alb = vec3f(.9, .85, .7); emi = vec3f(2.6, 1.75, .95) * 1.6 * max(LIGHTS, .6) * (.9 + .2 * sd); gloss = .8;
   } else if (mat == 23) {
@@ -528,7 +535,7 @@ fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
     let u = fu; let v = fv;
     let q = vec2f(u / .9, v / .62); let qf = fract(q + vec2f(.5 * floor(q.y), 0.)) - .5;
     let ogee = cov(abs(abs(qf.x) - .32 * cos(qf.y * 3.1416)) * .9, .035, fwop / .9 * .9);
-    let weave = (1. - ss(.15, .5, fwop / .9)) * ogee;
+    let weave = mix(ogee, .3, ss(.15, .5, fwop / .9));
     alb = vec3f(.026, .025, .026) * (1. + .4 * weave); gloss = .36 + .3 * weave; bump = .02;
     // the silk hangs in long shallow folds that only show in its sheen
     let tg = select(vec3f(1., 0., 0.), vec3f(0., 0., 1.), abs(on.x) > .7);
@@ -576,7 +583,7 @@ fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
     gold = max(gold, cov(ce, .25, fw3) * inB * .8);
     let th = (1. - ss(.004, .02, fw3)) * (.75 + .25 * sin((u * 40. + v * 40.)));
     alb = mix(alb, vec3f(.98, .70, .30) * (.8 + .2 * th), gold); metal = gold; gloss = mix(gloss, .5, gold);
-    sheen = (.05 + .06 * weave) * (1. - gold);
+    sheen = (.1 + .08 * weave) * (1. - gold);
     if (on.y > .7) { alb = vec3f(.60, .58, .55) * (.9 + .15 * B.h); gloss = .2; metal = 0.; sheen = 0.; }
     if (on.y < -.7) { alb = vec3f(.05); }
   } else if (mat == 31) {
@@ -601,7 +608,7 @@ fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
     alb = mix(glass, vec3f(1., .74, .32), g_); metal = mix(select(.6, .25, i.op.y > 2.), 1., g_); gloss = .95;
   } else if (mat == 34) {
     // the later arcade: white marble with grey bands, round arches with a grey voussoir band
-    alb = vec3f(.70, .69, .66) * (.88 + .16 * B.h) * (.94 + .1 * C.c);
+    alb = vec3f(.70, .69, .66) * (.95 + .06 * B.h) * (.96 + .06 * C.c);
     let bu = fract(fu / BAY) * BAY - BAY * .5;
     var ys = 5.2; var hw = BAY * .5 - .75; var y0 = 0.;
     if (fv > 9.5) { ys = 14.6; hw = BAY * .5 - .85; y0 = 9.5; }
@@ -754,7 +761,7 @@ struct VO { @builtin(position) cp: vec4f, @location(0) d: vec3f };
       let q = rd.xz / rd.y * 6000.;
       let r = vec2f(q.x * .96 + q.y * .28, q.y * .96 - q.x * .28) * vec2f(.00011, .00042) + vec2f(g.cam.w * .002, 0.);
       let n = fbm(vec3f(r, 1.3), 5) + .35 * (fbm(vec3f(r * 3.1, 4.1), 3) - .5);
-      let cov_ = ss(.56, .95, n) * ss(.03, .2, rd.y) * (1. - ss(.35, .9, rd.y));
+      let cov_ = ss(.6, .97, n) * ss(.03, .2, rd.y) * (1. - ss(.35, .9, rd.y));
       let lit = mix(HORF * 1.25 + vec3f(.18, .08, .06), normalize(SUNC) * 2.8, pow(max(mu * .5 + .5, 0.), 3.)) * (.75 + .5 * fbm(vec3f(r * 7., 2.), 2));
       c = mix(c, lit, cov_ * .3);
     }

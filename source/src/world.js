@@ -35,9 +35,9 @@ const POSES_L = [
   [25, 1.7, -15, 0, 6.2, 1, 0],
   [13.5, 1.7, 9.5, 5.2, 5.4, 5.6, 0],
   [-27, 1.7, -12, 0, 6.5, -1.5, 0],
-  [47.3, 1.7, 33, 28, 3.6, -8, 0],
+  [47.6, 1.7, 37.5, 30, 3.4, -6, 0],
   [21.5, 1.7, 1.2, 9, 3.2, 4.2, 0],
-  [205.1, 150, -205.1, -240.4, 150, 183.8, 1],
+  [141.4, 120, -141.4, -150, 92, 120, 1],
 ];
 const POSES = POSES_L.map(([x, y, z, tx, ty, tz, f]) => { const p = K(x, z), t = K(tx, tz); return [p[0], y, p[1], t[0], ty, t[1], f]; });
 // 60 s scripted camera path (Kaaba frame, absolute heights): round the Kaaba anticlockwise from the Black Stone,
@@ -285,7 +285,7 @@ function makeWorld(FAR, flyPts) {
   // the Mizab: a gold spout over the Hijr from the top of the north-west wall
   gold.sweep([[0, KH - .3, -KHZ + .2], [0, KH - .5, -KHZ - 1.2], [0, KH - .62, -KHZ - 1.75]], .3, .06, null, true);
   for (const sx of [-1, 1]) gold.sweep([[sx * .17, KH - .15, -KHZ + .1], [sx * .17, KH - .35, -KHZ - 1.2], [sx * .17, KH - .47, -KHZ - 1.75]], .05, .16, null, true);
-  local(gold, 10); local(door, 31);
+  local(gold, 10, 1); local(door, 31);
   // the Black Stone: a silver frame bent round the east corner, the dark stone inside it
   {
     const sv = new Mesh(), st = new Mesh(), cy = 1.5, rh = .5, rv = .44;
@@ -369,14 +369,13 @@ function makeWorld(FAR, flyPts) {
   for (const [x, z] of lamps) { const w = K(x, z); solid(lnBi, w[0], 0, w[1], 1, QK, 23, 0); solid(lnGi, w[0], 0, w[1], 1, QK, 22, rnd()); }
 
   // --- the later arcade: three storeys of round arches, a dim depth behind every opening
-  const sa = new Mesh(), saFill = new Mesh(), saBody = new Mesh(), saCol = new Mesh();
+  const sa = new Mesh(), saFill = new Mesh(), saBody = new Mesh();
   for (const s of [-1, 1]) for (const onX of [true, false]) {
     const fixed = s * (onX ? SAX : SAZ), lo = onX ? -SAZ : -SAX, hi = -lo;
     const P = (u, y, d) => (onX ? [fixed - s * d, y, u] : [u, y, fixed - s * d]), n = onX ? [-s, 0, 0] : [0, 0, -s];
     for (let u = lo; u < hi - .01; u += BAY) {
       archPanel(sa, P, n, u, u + BAY, 0, 9.5, u + .75, u + BAY - .75, 0, 5.2, .62, 1.3, saFill);
       archPanel(sa, P, n, u, u + BAY, 9.5, 19, u + .85, u + BAY - .85, 10.5, 14.6, .62, 1.1, saFill);
-      for (const [y0, y1] of [[10.5, 14.6]]) { const c = P(u + BAY / 2, 0, -.55); lathe(saCol, [[.3, y0], [.3, y0 + .35], [.21, y0 + .5], [.19, y1 - .3], [.3, y1]], 10, c[0], 0, c[2]); }
     }
     // cornices between the storeys, a parapet on top
     for (const y of [9.5, SAH]) { const a = P(lo, y, 0), b = P(hi, y + .55, .45); box(sa, min(a[0], b[0]), y - .1, min(a[2], b[2]), max(a[0], b[0]), y + .55, max(a[2], b[2])); }
@@ -385,16 +384,15 @@ function makeWorld(FAR, flyPts) {
     { const a2 = P(lo, SAH + 1.4, .15), b2 = P(hi, SAH + 1.65, -.3); box(sa, min(a2[0], b2[0]), SAH + 1.4, min(a2[2], b2[2]), max(a2[0], b2[0]), SAH + 1.65, max(a2[2], b2[2])); }
     cbox(min(a[0], b[0]), max(a[0], b[0]), -5, SAH + 2, min(a[2], b[2]), max(a[2], b[2]));
   }
-  local(sa, 34, 0, .1); local(saFill, 38); local(saBody, 7, 0, .3); local(saCol, 36, 4);
+  local(sa, 34, 0, .1); local(saFill, 38); local(saBody, 7, 0, .3);
 
   // --- the larger expansions beyond: flat-roofed blocks, their facades painted with arcades
   const ex = new Mesh();
   const exD = new Mesh();
-  for (const [x0, z0, x1, z1, h] of [[SAX + SAD, -140, 150, 120, 32], [-150, -130, -SAX - SAD, 140, 32], [-SAX - SAD, SAZ + SAD, 110, 165, 30], [-110, -175, SAX + SAD, -SAZ - SAD, 34]]) {
+  for (const [x0, z0, x1, z1, h] of [[SAX + SAD, -140, 150, 120, 17], [-150, -130, -SAX - SAD, 140, 17], [-SAX - SAD, SAZ + SAD, 110, 165, 16], [-110, -175, SAX + SAD, -SAZ - SAD, 18]]) {
     box(ex, x0, 0, z0, x1, h, z1);
     merlons(ex, x0, z0, x1, z0, h, 1.8, 1.1); merlons(ex, x0, z1, x1, z1, h, 1.8, 1.1); merlons(ex, x0, z0, x0, z1, h, 1.8, 1.1); merlons(ex, x1, z0, x1, z1, h, 1.8, 1.1);
     // a few roof domes and stair houses break the long flat roofs
-    lathe(exD, domeProf(7.5, 1.2, 1.05), 24, (x0 + x1) / 2, h, (z0 + z1) / 2);
   }
   local(ex, 7, 1, .5); local(exD, 37, 1);
 
@@ -446,7 +444,7 @@ function makeWorld(FAR, flyPts) {
       const lx = i * 30 - 165 + rr(-3, 3), lz = j * 30 - 165 + rr(-3, 3), x = dx + lx * ca - lz * sa_, z = dz + lx * sa_ + lz * ca, c = farB(x, z, 0);
       if (c < .05 || rnd() > min(1, c * 3) * (1 - .6 * sstep(1200, 3200, hypot(x, z)))) continue;
       const l = KL(x, z);
-      if (abs(l[0]) < 240 && abs(l[1]) < 260) continue;
+      if (abs(l[0]) < 300 && abs(l[1]) < 320) continue;
       if (hypot(x - CLOCK[0], z - CLOCK[1]) < 150) continue;
       const r = hypot(x, z);
       let t = CITY_LOW[(rnd() * CITY_LOW.length) | 0];
@@ -461,7 +459,7 @@ function makeWorld(FAR, flyPts) {
   const birds = [];
   for (const f of [[40, 26, -40, 30, 26, 1], [-55, 34, 30, 36, 24, -1], [30, 18, 60, 22, 16, -1], [-60, 50, -70, 50, 30, 1], [80, 40, 40, 30, 14, 1], [-20, 70, 110, 60, 20, -1]]) {
     const ss_ = rnd();
-    for (let i = 0; i < f[4]; i++) birds.push(f[0], f[1], f[2], f[3], ss_ + rnd() * .2, f[5] * rr(.9, 1.1) * 7 / f[3], rr(.9, 1.15), rnd());
+    for (let i = 0; i < f[4]; i++) birds.push(f[0], f[1], f[2], f[3], ss_ + rnd() * .2, f[5] * rr(.9, 1.1) * 7 / f[3], rr(1.4, 1.8), rnd());
   }
   const motes = new Float32Array(4000 * 4);
   for (let i = 0; i < motes.length; i++) motes[i] = rnd();
