@@ -54,12 +54,12 @@ fn ridged(p: vec2f, s: f32) -> f32 { return 1. - abs(fbm(vec3f(p * s, 5.), 4) * 
   m = max(m, ss(2500., 7000., r) * .8);
   let rg = ridged(p2, .0019); let rg2 = ridged(p2 + 400., .0052);
   var h = 2. * (fbm(vec3f(x * .004, 1.3, z * .004), 2) - .5) + .006 * max(dot(p2, vec2f(.7071, -.7071)), -800.);
-  h += m * (190. * (.3 + .7 * pow(rg, 1.6)) + 60. * (rg2 - .5));
+  h += m * (290. * (.3 + .7 * pow(rg, 1.6)) + 80. * (rg2 - .5));
   for (var k = 0; k < 7; k++) {
     let c = HILLS[k]; let d = distance(p2, c.xy) / c.w;
     if (d < 1.) { let t = 1. - d; h += c.z * pow(t, 1.3) * (.75 + .5 * rg) + 30. * t * (rg2 - .5); m = max(m, ss(.0, .35, t)); }
   }
-  h += 260. * ss(6500., 11500., r) * (.5 + .8 * fbm(vec3f(x * .0005, 9., z * .0005), 3));
+  h += 480. * ss(5500., 11000., r) * (.5 + .8 * fbm(vec3f(x * .0005, 9., z * .0005), 3));
   h = mix(h, -.3, ss(650., 440., r));
   let gran = sat(m * 1.4) * ss(4., 30., h);
   // the city fills the valley floor and climbs the lower slopes; the Haram's plazas stay open
@@ -151,6 +151,7 @@ const HORL = ${f3(TD.horL)};
 const HORF = ${f3(TD.horF)};
 const GND = ${f3(TD.gnd)};
 const LIGHTS = ${TD.lights.toFixed(2)};
+const SUN_ = vec3f(${SUN.map((v) => v.toFixed(4)).join(', ')});
 const NIGHT = ${NIGHT};
 const DAWN = ${TOD === 0};
 const BETA = vec3f(.8e-4, .98e-4, 1.25e-4) * ${TOD === 1 ? '1.25' : '1.'};
@@ -186,7 +187,7 @@ fn skyCol(rd: vec3f, sun: vec3f) -> vec3f {
     // the lit city glows low on the horizon all round; the moon has a soft halo
     c += vec3f(.30, .16, .07) * .22 * pow(sat(1. - y * 7.), 2.5) + vec3f(.10, .11, .14) * .06 * pow(max(mu, 0.), 20.);
   } else {
-    c += normalize(SUNC) * vec3f(1., .5, .2) * .55 * pow(sat(1. - y * 4.), 3.) * tw * tw * tw;
+    c += normalize(SUNC) * vec3f(1., .55, .25) * .8 * pow(sat(1. - y * 3.5), 3.) * tw * tw;
     if (DAWN) { c += vec3f(.30, .12, .16) * ss(.0, .06, y) * ss(.28, .08, y) * (1. - tw) * (1. - tw); }
     c += SUNC * (.05 * pow(max(mu, 0.), 5.) + .13 * pow(max(mu, 0.), 40.) + .3 * pow(max(mu, 0.), 500.));
   }
@@ -237,14 +238,22 @@ fn aisle(l: vec2f, y: f32) -> f32 {
 fn skyOcc(p: vec3f) -> f32 {
   let l = KL(p.xz); let a = abs(l);
   let dk = length(max(a - KH.xz, vec2f(0.)));
-  var o = mix(.62, 1., ss(0., 4., dk + p.y * .25));
+  var o = mix(.3, 1., ss(0., 2.2, dk + p.y * .45)) * mix(.8, 1., ss(0., 9., dk));
+  if (p.y < 1.6) {
+    let dm = length(l - vec2f(${MAQAM[0]}, ${MAQAM[1]})) - 1.05;
+    o *= mix(.45, 1., ss(0., 1.1, dm + p.y * .9));
+    let hq = vec2f(l.x / 5.05, (l.y + KH.z + 2.35) / 7.2);
+    let hd = select(abs(length(hq) - 1.) * 6. - .75, 9., l.y > -KH.z - 2.35);
+    o *= mix(.5, 1., ss(0., 1.3, hd + max(p.y - 1.31, 0.) * 3. + p.y * .3));
+  }
   let dw = min(SA.x - a.x, SA.y - a.y);
   o *= mix(.7, 1., ss(0., 14., dw + max(p.y - 8., 0.) * .4));
-  return o * (1. - .7 * aisle(l, p.y));
+  return o * (1. - .55 * aisle(l, p.y));
 }
 fn amb(n: vec3f, sky: f32) -> vec3f {
   let up = n.y * .5 + .5;
-  return mix(ZEN, (HORL + HORF) * .5, .74) * 1.05 * up * up * (.35 + .65 * sky) + GND * .72 * (1. - up) * (.65 + .35 * sky) + GND * .16 * (.5 + .5 * sky);
+  let toSun = sat(dot(normalize(vec3f(n.x, 0., n.z) + vec3f(0., 1e-4, 0.)), normalize(vec3f(SUN_.x, 0., SUN_.z)))) * (1. - abs(n.y));
+  return HORL * .3 * toSun * toSun * (.4 + .6 * sky) + mix(ZEN, (HORL + HORF) * .5, .74) * .92 * up * up * (.35 + .65 * sky) + GND * .72 * (1. - up) * (.65 + .35 * sky) + GND * .16 * (.5 + .5 * sky);
 }
 // the hanging lanterns in the inner Ottoman arches, as point lights on whatever is near them
 fn lamps(p: vec3f, n: vec3f) -> vec3f {
@@ -339,17 +348,17 @@ fn script(u: f32, v: f32, H: f32, fw: f32, sd: f32) -> f32 {
   // diamond dots above and below
   if (r3 > .58) { let dy = select(-.2, .52, r2 > .4) * H; d = min(d, abs(xs - (r1 - .5) * .03) + abs(y - dy) - .011); }
   let c = sat(-d / max(fw, 1e-4) + .5);
-  return mix(c, .32, ss(.008, .03, fw));
+  return mix(c, .5, ss(.008, .03, fw));
 }
 // polished marble floor. rgb = albedo, a = polish. Mataf: very white; aisles: bands and a star per bay; plaza: paving
 fn floorMat(p: vec2f, fw: f32, vein: f32) -> vec4f {
   let l = KL(p); let a = abs(l);
   let jx = abs(fract(l / vec2f(1.2, .8)) - .5) * vec2f(1.2, .8);
-  let joint = max(cov(.6 - jx.x, .002, fw), cov(.4 - jx.y, .002, fw));
+  let joint = max(cov(.6 - jx.x, .003, fw), cov(.4 - jx.y, .003, fw)) * (1. - ss(.004, .02, fw));
   let id = floor(l / vec2f(1.2, .8)); let hh = h2(id);
-  var mataf = vec3f(.875, .875, .865) * (.975 + .04 * hh);
+  var mataf = vec3f(.885, .88, .865) * (.975 + .04 * hh) * (.96 + .05 * vein);
   mataf = mix(mataf, vec3f(.70, .71, .72), vein * .16);
-  mataf *= 1. - .22 * joint;
+  mataf *= 1. - .38 * joint;
   // aisle: grey border band at each bay, a star in the middle of every bay
   let q = l - BAY * (floor(l / BAY) + .5); let aq = abs(q);
   let star = min(max(aq.x, aq.y) - 1.2, (aq.x + aq.y) * .70711 - 1.2);
@@ -364,7 +373,7 @@ fn floorMat(p: vec2f, fw: f32, vein: f32) -> vec4f {
   let inM = step(a.x, OT.x) * step(a.y, OT.y);
   let inA = step(a.x, SA.x) * step(a.y, SA.y) * (1. - inM);
   var c = mix(pav, ais, inA); c = mix(c, mataf, inM);
-  return vec4f(c, mix(mix(.25, .45, inA), .4, inM));
+  return vec4f(c, mix(mix(.25, .45, inA), .5, inM));
 }
 // a ray against the Kaaba box in its own frame: x = distance (or -1), y = height of the hit
 fn kaabaHit(o: vec3f, d: vec3f) -> vec2f {
@@ -390,13 +399,13 @@ fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
     let hO = 11.5 + 18. * ss(0., 30., t * .1);
     let k = ss(hO + 1., hO - 1., q.y);
     let uu = select(q.x, q.z, tx < tz);
-    let arch = arcade(uu + BAY * .5, q.y, BAY, 4.6, 0.) * step(q.y, 8.);
-    col = mix(col, mix(vec3f(.74, .69, .60) * lit, vec3f(.12, .1, .08) * lit + LAMPC * LIGHTS * .08, arch), k);
+    let band = ss(1., 6., q.y) * ss(9., 7., q.y);
+    col = mix(col, mix(vec3f(.70, .65, .57) * lit, vec3f(.3, .26, .21) * lit + LAMPC * LIGHTS * .05, band * .6), k * .85);
   }
   let kh = kaabaHit(o, d);
   if (kh.x > 0.) {
     let band = step(BAND.x, kh.y) * step(kh.y, BAND.y);
-    col = mix(vec3f(.012, .012, .013) + lit * .01, vec3f(.95, .66, .26) * lit * .5, band);
+    col = mix(vec3f(.02, .02, .021) + lit * .01, vec3f(.95, .66, .26) * lit * .45, band);
   }
   return col;
 }
@@ -418,25 +427,29 @@ fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
   let wfade = 1. - ss(.25, .6, fwidth(fu / 3.4) + fwidth(fv / 3.3));
   if (mat <= 1) {
     let gran = fm.g; let city = fm.b;
-    var gr = mix(vec3f(.30, .25, .21), vec3f(.44, .36, .29), A.c) * (.6 + .6 * B.h);
+    var gr = mix(vec3f(.24, .21, .19), vec3f(.38, .32, .27), A.c) * (.6 + .6 * B.h);
     gr = mix(gr, gr * vec3f(.62, .6, .6), ss(.5, .8, B.c) * .6);
     alb = mix(vec3f(.56, .46, .36), vec3f(.66, .56, .44), sat(A.c * .9 + Lg.a * .9 - .55)) * (.75 + .4 * mix(B.h, Lg.b, .45));
     alb = mix(alb, gr, sat(gran * 1.3) * (1. - .2 * flt));
     alb = mix(alb, mix(vec3f(.48, .46, .43) * (.9 + .14 * C.c), vec3f(.66, .63, .58), ss(.85, .97, city)), ss(.05, .25, city));
-    emi = vec3f(1., .7, .4) * LIGHTS * .02 * ss(.2, .6, city) * step(.55, Lg.a) * f32(NIGHT);
+    let sq = abs(fract(i.wp.xz / 46.) - .5) * 46.; let sq2 = abs(fract(i.wp.xz / 230. + .3) - .5) * 230.;
+    let street = max(max(cov(sq.x, 2.5, fwp), cov(sq.y, 2.5, fwp)), max(cov(sq2.x, 7., fwp), cov(sq2.y, 7., fwp))) * ss(.2, .5, city);
+    alb = mix(alb, vec3f(.2, .2, .21), street * .8);
+    emi = vec3f(1., .7, .4) * LIGHTS * .03 * street * f32(NIGHT);
     bump = mix(.8, .2, ss(.05, .2, city)); gloss = .03;
   } else if (mat == 7 || mat == 17) {
     // plain stone (the expansions, 7, arcades painted on) and the city's hotels and houses (17, windows by floor)
     let hh = hs(sd * 3.7);
     let ct = select(select(select(select(vec3f(.78, .73, .64), vec3f(.66, .60, .52), hh > .3), vec3f(.82, .81, .78), hh > .5), vec3f(.56, .55, .54), hh > .72), vec3f(.72, .62, .50), hh > .88);
     alb = select(vec3f(.80, .77, .71), ct, mat == 17) * (.86 + .2 * B.h) * (.94 + .1 * C.c);
+    if (mat == 17) { alb *= mix(vec3f(1.), vec3f(.86, .82, .76), ss(.35, .7, Lg.a)); }
     if (mat == 17) {
       let bw = mix(2.6, 4.2, hs(sd * 11.)); let ww = mix(.2, .38, hs(sd * 13.));
       let wx = fract(fu / bw); let wy = fract(fv / 3.3); let flr = floor(fv / 3.3); let bay = floor(fu / bw);
       let win = step(.5 - ww, wx) * step(wx, .5 + ww) * step(.28, wy) * step(wy, .78) * step(1., flr) * wall * step(fv, i.m.w - 1.) * wfade;
       let lit = step(select(.9, .45, NIGHT), hs(flr * 13.1 + bay * 7.7 + sd * 31.));
       alb = mix(alb, vec3f(.08, .09, .10), win * .85);
-      alb = mix(alb, alb * vec3f(.84, .82, .8), (1. - wfade) * wall * .5);
+      alb = mix(alb, alb * vec3f(.66, .65, .64), (1. - wfade) * wall * (.5 + .4 * hs(sd * 5.)));
       emi = vec3f(1., .72, .42) * .25 * LIGHTS * win * lit + vec3f(1., .75, .45) * .05 * LIGHTS * (1. - wfade) * wall * f32(NIGHT);
       alb = mix(alb, alb * vec3f(.6, .58, .56), ss(.6, .9, on.y));
       gloss = mix(.08, .55, win);
@@ -455,8 +468,9 @@ fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
     alb = select(vec3f(.80, .75, .66), vec3f(.84, .81, .75), mat == 20) * (.9 + .12 * B.h) * (.95 + .08 * C.c);
     let cj = max(cov(abs(fract(fv / .55) - .5) * .55 - .27, .005, fw3), cov(abs(fract(fu / 1.1 + floor(fv / .55) * .5) - .5) * 1.1 - .54, .005, fw3)) * wall;
     alb *= 1. - .25 * cj * (1. - ss(.02, .06, fw3));
-    if (mat == 25 && i.m.w > .5 && abs(on.y) < .3) {
-      let bu = fract(fu / BAY) * BAY - BAY * .5;
+    let xs = min(abs(abs(i.op.x) - OT.x - .3), abs(abs(i.op.x) - OT.x - 5.3)) < .5;
+    if (mat == 25 && i.m.w > .5 && select(abs(on.z), abs(on.x), xs) > .9) {
+      let bu = fract(select(i.op.x, i.op.z, xs) / BAY) * BAY - BAY * .5;
       let ad = archD(bu, fv, BAY * .5 - .32, 4.3, (BAY - .64) * .72);
       let bwid = .42;
       let vb = cov(ad.x - bwid * .5, bwid * .5, fw3) * step(-.5, ad.y) * step(fv, 7.9);
@@ -465,8 +479,8 @@ fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
     }
     if (mat == 25 && on.y < -.7) {
       // aisle ceilings: a ring under every dome
-      let q = abs(fract(vec2f(i.op.x, i.op.z) / BAY) - .5) * BAY;
-      alb = mix(vec3f(.86, .82, .74), vec3f(.55, .47, .36), cov(abs(length(q - BAY * .5) - 1.9), .08, fw3));
+      let q = (fract(vec2f(i.op.x, i.op.z) / BAY) - .5) * BAY;
+      alb = mix(vec3f(.86, .82, .74), vec3f(.55, .47, .36), max(cov(abs(length(q) - 1.9), .07, fwop), cov(abs(length(q) - 1.6), .03, fwop)));
     }
     if (mat == 20) {
       // minaret: blind pointed niches on the octagon faces of each stage, lit openings in the lantern, lamps under the balconies
@@ -547,9 +561,14 @@ fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
       let fr = max(cov(abs(abs(du) - 2.12), .05, fw3), cov(abs(abs(du) - 1.85), .02, fw3));
       let ah = archD(du, dv, 1.5, 6.1, 1.9);
       let head = cov(abs(ah.x), .04, fw3) * step(-.5, ah.y);
-      let lat = cov(abs(fract((du + dv) * 3.) - .5) * .33, .02, fw3) * cov(abs(fract((du - dv) * 3.) - .5) * .33, .2, fw3);
-      gold = max(gold, inS * min(1., fr + head + dense * step(ah.x, -.12) + (lat * .7 + .18) * step(-.12, ah.x)));
+      let rq = fract(vec2f(du, dv) / .28) - .5; let rqd = length(rq) * .28;
+      let lat = max(cov(abs(rqd - .09), .012, fwop), cov(rqd, .025, fwop)) + cov(abs(abs(rq.x) + abs(rq.y) - .5) * .2, .006, fwop);
+      gold = max(gold, inS * min(1., fr + head + dense * step(ah.x, -.12) + (lat * .85 + .1) * step(-.12, ah.x)));
     }
+    // the hem: a darker band near the base, tied down with brass rings
+    let hem = step(v, .78) * step(.3, v);
+    alb = mix(alb, vec3f(.018), hem * .6);
+    gold = max(gold, cov(abs(v - .78), .02, fwop) + cov(length(vec2f(fract(u / .7) - .5, (v - .45) / .7) * .7), .035, fwop));
     // corners: a gold medallion at band height on every vertical edge
     let ce = min(KH.x - abs(i.op.x), KH.z - abs(i.op.z));
     gold = max(gold, cov(ce, .25, fw3) * inB * .8);
@@ -565,18 +584,20 @@ fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
     let rose = cov(abs(length((fract(c) - .5) * vec2f(.45, h / 6.)) - .09), .015, fw3);
     alb = vec3f(1., .76, .34) * (1. - .45 * fr) * (1. - .3 * rose); metal = 1.; gloss = .7; bump = 0.;
   } else if (mat == 32) {
-    alb = select(vec3f(.84, .85, .87), vec3f(.035, .025, .022), i.m.w > .5); metal = select(1., 0., i.m.w > .5); gloss = .85; bump = 0.;
+    alb = select(vec3f(.70, .70, .69), vec3f(.03, .022, .02), i.m.w > .5); metal = select(.75, 0., i.m.w > .5); gloss = select(.5, .8, i.m.w > .5); bump = 0.;
   } else if (mat == 33) {
     // Maqam Ibrahim: a gold lattice over dark glass
     let ang = atan2(i.op.z - ${MAQAM[1]}, i.op.x - ${MAQAM[0]}) * .7 / .22; let v = i.op.y / .22;
     let qa = abs(fract(vec2f(ang + v, ang - v) * .5) - .5);
     let bars = max(cov(qa.x, .05, fw3 / .22 * .5), cov(qa.y, .05, fw3 / .22 * .5));
     let rim = cov(abs(i.op.y - 1.8), .08, fw3) + cov(abs(i.op.y - .6), .05, fw3);
-    let g_ = sat(bars * .8 + rim + step(2.05, i.op.y) * .55);
-    alb = mix(vec3f(.05, .04, .025), vec3f(1., .74, .32), g_); metal = mix(.5, 1., g_); gloss = .9;
+    let rib = cov(abs(fract(ang * .22 / .7 / TAU * 8.) - .5) * .7 * TAU / 8., .025, fwop) * step(2.0, i.op.y);
+    let g_ = sat(bars * .8 * step(i.op.y, 2.0) + rim + rib);
+    let glass = select(vec3f(.05, .04, .025), vec3f(.30, .26, .19), i.op.y > 2.);
+    alb = mix(glass, vec3f(1., .74, .32), g_); metal = mix(.6, 1., g_); gloss = .92;
   } else if (mat == 34) {
     // the later arcade: white marble with grey bands, round arches with a grey voussoir band
-    alb = vec3f(.84, .83, .80) * (.92 + .1 * B.h) * (.96 + .06 * C.c);
+    alb = vec3f(.76, .75, .72) * (.88 + .16 * B.h) * (.94 + .1 * C.c);
     let bu = fract(fu / BAY) * BAY - BAY * .5;
     var ys = 5.6; var hw = BAY * .5 - .75; var y0 = 0.;
     if (fv > 9.5) { ys = 15.2; hw = BAY * .5 - .85; y0 = 9.5; }
@@ -617,32 +638,34 @@ fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
     }
   } else if (mat == 36) {
     alb = vec3f(.86, .86, .84) * (.95 + .06 * B.h); gloss = .55; bump = .03;
-    alb = mix(alb, vec3f(.66, .66, .67), (1. - ss(.0, .06, abs(A.h - .52))) * .25);
+    alb = mix(alb, vec3f(.62, .62, .64), (1. - ss(.0, .03, abs(C.h - .52))) * .22);
+    if (i.m.w > 1.5 && i.m.w < 2.5) { alb = mix(alb, vec3f(.5, .5, .52), cov(abs(fv - 1.12), .03, fwop) + cov(abs(fv - .18), .05, fwop)); }
   } else if (mat == 37) {
     let rib = cov(abs(fract(atan2(i.op.z - floor(i.op.z / BAY) * BAY - BAY * .5, i.op.x - floor(i.op.x / BAY) * BAY - BAY * .5) / TAU * 16.) - .5), .04, fw3 * 2.);
     alb = vec3f(.70, .69, .66) * (.92 + .1 * B.h) * (1. - .12 * rib); gloss = .15; bump = .08;
   } else if (mat == 38) {
     // the dim depth behind the later arcade's openings: a warm hall that recedes, lamps glowing in it at night
     let up = fract(fv / 9.5);
-    alb = vec3f(.06, .055, .05) * (.6 + .5 * up);
-    let ch = cov(abs(fract(fu / BAY) - .5) * BAY, .5, fw3) * cov(abs(up - .55), .12, fw3 / 9.5);
-    emi = LAMPC * LIGHTS * (.035 + .05 * (1. - up) + .5 * ch); gloss = .05; bump = 0.;
+    alb = vec3f(.16, .13, .10) * (.6 + .5 * up);
+    let ch = cov(length(vec2f((fract(fu / BAY) - .5) * BAY, (up - .62) * 9.5)), .16, fwop);
+    alb *= 1. - .35 * ss(.3, .9, up);
+    emi = LAMPC * LIGHTS * (.025 + .04 * (1. - up)) + LAMPC * ch * LIGHTS * LIGHTS * .3; gloss = .05; bump = 0.;
   }
   let N = normalize(qrot(i.q, normalize(on + pert + (A.n * .8 + B.n * .6 + C.n * .4 * ss(70., 10., dist)) * bump)));
   let L = g.sun.xyz; let V = normalize(g.cam.xyz - i.wp);
   let so = select(skyOcc(i.wp + n0 * .3), 1., far || mat == 17 || mat == 35);
   let ao = so * vao * select(1., mix(1., i.ao, .6), far || mat == 25 || mat == 34 || mat == 20);
   let sh = select(shadow9(i.wp + n0 * (.12 + dist * .002) + g.sun.xyz * .1), sat(i.ao * 1.6 - .3), far);
-  let E = SUNC * sh;
+  let E = SUNC * sh * select(1., .15, mat == 38);
   let ndl = sat(dot(N, L));
-  let am = (amb(N, so) + flood(i.wp, N)) * ao + lamps(i.wp, N);
+  let am = (amb(N, so) + flood(i.wp, N) + GND * SUNC * .12 * aisle(KL(i.wp.xz), i.wp.y)) * ao + lamps(i.wp, N);
   var c = alb * (E * ndl + am) * (1. - metal * .85) + emi;
   let Hh = normalize(V + L);
   let spc = mix(vec3f(.04), alb, metal);
   c += E * spc * pow(sat(dot(N, Hh)), mix(8., 160., gloss)) * gloss * ndl * 4.;
   let R = reflect(-V, N); let fr = pow(1. - sat(dot(N, V)), 5.);
   if (mat == 19) {
-    let F = .04 + .96 * fr;
+    let F = .07 + .93 * fr;
     c = c * (1. - F * polish) + floorRefl(i.wp, R) * F * polish * mix(.6, 1., so);
   } else {
     // the environment the surface reflects: the sky above, the warm floor and lit arcades round it
@@ -660,17 +683,24 @@ struct VO { @builtin(position) cp: vec4f, @location(0) wp: vec3f, @location(1) n
 @vertex fn vs(i: VI) -> VO {
   var o: VO;
   let s = i.b.x; let h = vec3f(hs(s), hs(s + .37), hs(s + .71));
-  let R = i.a.w; let t = g.cam.w;
-  let ta = t * i.b.y + i.b.w * 6.3 + (h.x - .5) * (14. / R);
+  let R = i.a.w; let t = g.cam.w; let stand = R < .5;
+  let ta = t * i.b.y + i.b.w * 6.3 + (h.x - .5) * (14. / max(R, .5));
   let ph = i.b.w * 17.;
-  let P = i.a.xyz + vec3f(R * cos(ta), 4. * sin(2. * ta + ph), R * .8 * sin(ta));
-  let T = normalize(vec3f(-R * sin(ta), 8. * cos(2. * ta + ph), R * .8 * cos(ta))) * sign(i.b.y);
+  var P = i.a.xyz + vec3f(R * cos(ta), 4. * sin(2. * ta + ph), R * .8 * sin(ta));
+  var T = normalize(vec3f(-R * sin(ta), 8. * cos(2. * ta + ph), R * .8 * cos(ta))) * sign(i.b.y);
+  var off = vec3f(0.);
+  if (stand) {
+    let hd = i.b.y + .4 * sin(t * .3 + s * 9.);
+    let peck = pow(max(sin(t * 2.2 + s * 30.), 0.), 6.);
+    T = normalize(vec3f(cos(hd), -.5 * peck, sin(hd))); P = i.a.xyz + vec3f(0., .13 + .01 * sin(t * 5. + s), 0.);
+  }
   let S = normalize(cross(vec3f(0., 1., 0.), T)); let Up = cross(T, S);
-  let off = S * ((h.y - .5) * 9. + sin(t * .5 + s * 40.) * 1.5) + Up * ((h.z - .5) * 5. + cos(t * .4 + s * 31.) * 1.);
+  if (!stand) { off = S * ((h.y - .5) * 9. + sin(t * .5 + s * 40.) * 1.5) + Up * ((h.z - .5) * 5. + cos(t * .4 + s * 31.) * 1.); }
   var l = i.p * i.b.z;
   let au = abs(i.n.w);
   let flap = ss(-.3, .4, sin(t * .45 + s * 23.));
-  l.y += sin(t * 13. + s * 50.) * .55 * au * au * i.b.z * flap + au * .12 * i.b.z * (1. - flap);
+  if (stand) { l.x *= mix(1.15, .2, au); l.y = l.y * 1.6 - .03 * au; }
+  else { l.y += sin(t * 13. + s * 50.) * .55 * au * au * i.b.z * flap + au * .12 * i.b.z * (1. - flap); }
   let w = P + off + S * l.x + Up * l.y + T * l.z;
   o.cp = g.vp * vec4f(w, 1.); o.wp = w; o.n = S * i.n.x + Up * i.n.y + T * i.n.z; o.op = i.p; o.sd = s;
   return o;
@@ -718,9 +748,9 @@ struct VO { @builtin(position) cp: vec4f, @location(0) d: vec3f };
       let q = rd.xz / rd.y * 6000.;
       let r = vec2f(q.x * .96 + q.y * .28, q.y * .96 - q.x * .28) * vec2f(.00011, .00042) + vec2f(g.cam.w * .002, 0.);
       let n = fbm(vec3f(r, 1.3), 5) + .35 * (fbm(vec3f(r * 3.1, 4.1), 3) - .5);
-      let cov_ = ss(.62, .88, n) * ss(.03, .2, rd.y) * (1. - ss(.35, .9, rd.y));
+      let cov_ = ss(.64, .9, n) * ss(.03, .2, rd.y) * (1. - ss(.35, .9, rd.y));
       let lit = mix(HORF * 1.35 + vec3f(.15, .05, .08), normalize(SUNC) * 2.6, pow(max(mu * .5 + .5, 0.), 4.)) * (.75 + .5 * fbm(vec3f(r * 7., 2.), 2));
-      c = mix(c, lit, cov_ * .42);
+      c = mix(c, lit, cov_ * .3);
     }
     c += SUNC * 9. * ss(.99988, .99994, mu);
   }
@@ -827,7 +857,7 @@ fn tmap(x: vec3f) -> vec3f { return clamp((x * (2.51 * x + .03)) / (x * (2.43 * 
   }
   var c = textureLoad(tS, px, 0).rgb + acc / ws;
   let bl = textureSampleLevel(tB, sC, uv, 0.).rgb;
-  c = mix(c, bl, .012) + bl * .005;
+  c = mix(c, bl, .03) + bl * .012;
   c *= g.mis.x;
   let q = uv - .5;
   c *= 1. - dot(q, q) * .45;

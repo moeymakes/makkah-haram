@@ -8,8 +8,8 @@
 
 // time of day: the key light (the moon at night), sky colours, exposure and how bright the lamps are
 const TODS = [
-  { az: 68, el: 6, sunc: [2.3, 1.6, 1.15], zen: [.16, .27, .55], horL: [1.25, .78, .58], horF: [.60, .64, .78], gnd: [.80, .68, .58], expo: .62, rays: 1, lights: .2 },
-  { az: 250, el: 9, sunc: [2.9, 2.1, 1.35], zen: [.10, .24, .58], horL: [1.35, .84, .44], horF: [.74, .68, .66], gnd: [.86, .70, .52], expo: .5, rays: 1, lights: 1 },
+  { az: 68, el: 11, sunc: [2.8, 1.62, 1.0], zen: [.13, .24, .54], horL: [1.4, .8, .52], horF: [.64, .64, .74], gnd: [.80, .68, .58], expo: .6, rays: 1, lights: .2 },
+  { az: 250, el: 24, sunc: [2.9, 2.1, 1.35], zen: [.10, .24, .58], horL: [1.35, .84, .44], horF: [.74, .68, .66], gnd: [.86, .70, .52], expo: .5, rays: 1, lights: 1 },
   { az: 140, el: 35, sunc: [.16, .19, .27], zen: [.004, .008, .022], horL: [.05, .045, .05], horF: [.02, .025, .04], gnd: [.05, .045, .04], expo: 2.4, rays: 0, lights: 6 },
 ];
 const TD = TODS[TOD], NIGHT = TOD === 2;
@@ -34,10 +34,10 @@ const MINW = MINS.map(([a, d]) => [sin(a * PI / 180) * d, -cos(a * PI / 180) * d
 const POSES_L = [
   [25, 1.7, -15, 0, 6.2, 1, 0],
   [13.5, 1.7, 9.5, 5.2, 5.4, 5.6, 0],
-  [-7, 1.7, -27, 1, 5.5, -3, 0],
+  [-27, 1.7, -12, 0, 6.5, -1.5, 0],
   [42.5, 1.7, 28, 22, 4.6, -10, 0],
   [21.5, 1.7, 1.2, 9, 3.2, 4.2, 0],
-  [268.7, 170, -268.7, -300.5, 185, 236.9, 1],
+  [205.1, 150, -205.1, -240.4, 150, 183.8, 1],
 ];
 const POSES = POSES_L.map(([x, y, z, tx, ty, tz, f]) => { const p = K(x, z), t = K(tx, tz); return [p[0], y, p[1], t[0], ty, t[1], f]; });
 // 60 s scripted camera path (Kaaba frame, absolute heights): round the Kaaba anticlockwise from the Black Stone,
@@ -61,9 +61,9 @@ const FLY_L = [
   42.5, 3, -10, 30, 4, -17.5,
   42.5, 3, -17.5, 20, 5, -17.5,
   35, 4, -17.5, 0, 10, 0,
-  25, 24, -45, 0, 10, 20,
-  140, 100, -150, -100, 60, 100,
-  268.7, 170, -268.7, -300.5, 185, 236.9,
+  25, 42, -40, 0, 10, 20,
+  100, 95, -120, -100, 60, 100,
+  205.1, 150, -205.1, -240.4, 150, 183.8,
 ];
 const FLY = new Float32Array(FLY_L.length);
 for (let i = 0; i < FLY_L.length; i += 6) { const p = K(FLY_L[i], FLY_L[i + 2]), t = K(FLY_L[i + 3], FLY_L[i + 5]); FLY.set([p[0], FLY_L[i + 1], p[1], t[0], FLY_L[i + 4], t[1]], i); }
@@ -282,16 +282,17 @@ function makeWorld(FAR, flyPts) {
   box(door, KHX + .1, DOOR0, DOORZ - DOORW, KHX + .16, DOOR1, DOORZ + DOORW);
   box(gold, KHX + .1, DOOR0 - .08, DOORZ - .03, KHX + .22, DOOR1, DOORZ + .03);
   // the Mizab: a gold spout over the Hijr from the top of the north-west wall
-  gold.sweep([[0, KH - .25, -KHZ + .3], [0, KH - .4, -KHZ - 1.6], [0, KH - .5, -KHZ - 2.3]], .38, .26, null, true);
+  gold.sweep([[0, KH - .3, -KHZ + .2], [0, KH - .5, -KHZ - 1.2], [0, KH - .62, -KHZ - 1.75]], .3, .2, null, true);
+  box(gold, -.24, KH - .42, -KHZ - .06, .24, KH - .12, -KHZ + .02);
   local(gold, 10); local(door, 31);
   // the Black Stone: a silver frame bent round the east corner, the dark stone inside it
   {
-    const sv = new Mesh(), st = new Mesh(), cy = 1.5, rh = .42, rv = .36;
+    const sv = new Mesh(), st = new Mesh(), cy = 1.5, rh = .5, rv = .44;
     const wrap = (t, y, o) => (t < 0 ? [KHX + o, y, KHZ + t] : [KHX - t, y, KHZ + o]);
     const ring = (sc, o) => { const p = []; for (let k = 0; k <= 32; k++) { const a = k / 32 * TAU; p.push(wrap(cos(a) * rh * sc, cy + sin(a) * rv * sc, o)); } return p; };
     sv.tube(ring(1.18, .07), .085, 6, false, () => 1);
     const fan = (m, sc, o) => { const c = m.v(...wrap(0, cy, o)), rp = ring(sc, o).map((p) => m.v(...p)); for (let k = 0; k < 32; k++) m.tri(c, rp[k], rp[k + 1]); };
-    fan(sv, 1.16, .05); fan(st, .62, .075);
+    fan(sv, 1.16, .05); fan(st, .58, .085);
     local(sv, 32); local(st, 32, 1);
   }
 
@@ -353,9 +354,9 @@ function makeWorld(FAR, flyPts) {
   local(ott, 25, 1, .2); local(domes, 37); local(lead, 25, 0);
   // columns: base, slender shaft, capital (instanced)
   const colM = new Mesh();
-  lathe(colM, [[.44, 0, .8], [.44, .32], [.32, .44], [.27, .6], [.24, 3.55], [.3, 3.65], [.3, 3.75], [.46, 4.05], [.46, 4.32]], 12);
+  lathe(colM, [[.36, 0, .8], [.36, .3], [.27, .4], [.22, .56], [.195, 3.55], [.24, 3.63], [.24, 3.72], [.4, 4.04], [.4, 4.32]], 16);
   const colId = add(colM);
-  for (const [x, z] of cols) { const w = K(x, z); solid(colId, w[0], 0, w[1], 1, QK, 36, rnd(), 0, 4); CC.push(x, z, .4, 8); }
+  for (const [x, z] of cols) { const w = K(x, z); solid(colId, w[0], 0, w[1], 1, QK, 36, rnd(), 0, 4); CC.push(x, z, .34, 8); }
   const finId = add(meshFinial(1));
   for (const [x, y, z] of fins) { const w = K(x, z); solid(finId, w[0], y, w[1], .42, Q0, 10, 0); }
   // lanterns: a chain from the arch apex, a brass cage round a glowing glass body
@@ -413,7 +414,7 @@ function makeWorld(FAR, flyPts) {
     for (const [ox, oz, w, h] of [[-70, -25, 34, 262], [70, -25, 34, 248], [-70, 45, 32, 232], [70, 45, 32, 240], [-28, 58, 30, 210], [28, 58, 30, 220]]) {
       box(hot, cx + ox - w / 2, 92, cz + oz - w / 2, cx + ox + w / 2, h, cz + oz + w / 2);
       box(hot, cx + ox - w / 2 + 3, h, cz + oz - w / 2 + 3, cx + ox + w / 2 - 3, h + 12, cz + oz + w / 2 - 3);
-      lathe(hcr, [[w * .42, h + 12], [w * .36, h + 22], [w * .12, h + 40], [1, h + 52], [0, h + 56]], 4, cx + ox, 0, cz + oz, PI / 4);
+      lathe(hcr, [[w * .42, h + 12], [w * .4, h + 18], [w * .3, h + 26], [w * .14, h + 34], [1.2, h + 44], [0, h + 48]], 8, cx + ox, 0, cz + oz);
     }
     box(body, cx - 24, 92, cz - 24, cx + 24, 380, cz + 24);
     box(body, cx - 26, 380, cz - 26, cx + 26, 386, cz + 26);
@@ -426,7 +427,7 @@ function makeWorld(FAR, flyPts) {
       const pts = []; for (let k = 0; k < 48; k++) { const a = k / 48 * TAU, u = cos(a) * 21.5, y = 419 + sin(a) * 21.5; pts.push([cx + nx * 23.6 - nz * u, y, cz + nz * 23.6 + nx * u]); }
       face(faceM, pts, [nx, 0, nz]);
     }
-    solid(add(hot), 0, 0, 0, 1, Q0, 17, .37, 0, 260);
+    solid(add(hot), 0, 0, 0, 1, Q0, 35, 0, 0, 0);
     solid(add(body), 0, 0, 0, 1, Q0, 35, 0, 0, 0);
     solid(add(faceM), 0, 0, 0, 1, Q0, 35, 0, 0, 1);
     solid(add(crown), 0, 0, 0, 1, Q0, 10, 0); solid(add(hcr), 0, 0, 0, 1, Q0, 35, 0, 0, 0);
@@ -460,6 +461,11 @@ function makeWorld(FAR, flyPts) {
   for (const f of [[40, 26, -40, 30, 26, 1], [-55, 34, 30, 36, 24, -1], [30, 18, 60, 22, 16, -1], [-60, 50, -70, 50, 30, 1], [80, 40, 40, 30, 14, 1], [-20, 70, 110, 60, 20, -1]]) {
     const ss_ = rnd();
     for (let i = 0; i < f[4]; i++) birds.push(f[0], f[1], f[2], f[3], ss_ + rnd() * .2, f[5] * rr(.9, 1.1) * 7 / f[3], rr(.9, 1.15), rnd());
+  }
+  for (let k = 0; k < 9; k++) {
+    const a = rnd() * TAU, r = rr(14, 34), [cxl, czl] = [cos(a) * r, sin(a) * r * 1.3];
+    if (abs(cxl) < KHX + 3 && abs(czl) < KHZ + 10) continue;
+    for (let i = 0; i < 4 + (rnd() * 6 | 0); i++) { const w = K(cxl + rr(-2.5, 2.5), czl + rr(-2.5, 2.5)); birds.push(w[0], 0, w[1], 0, rnd(), rnd() * TAU, rr(1.25, 1.45), rnd()); }
   }
   const motes = new Float32Array(4000 * 4);
   for (let i = 0; i < motes.length; i++) motes[i] = rnd();
