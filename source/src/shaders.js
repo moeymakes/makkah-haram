@@ -190,6 +190,7 @@ fn skyCol(rd: vec3f, sun: vec3f) -> vec3f {
     c += normalize(SUNC) * vec3f(1., .55, .25) * .8 * pow(sat(1. - y * 3.5), 3.) * tw * tw;
     if (DAWN) { c += vec3f(.30, .12, .16) * ss(.0, .06, y) * ss(.28, .08, y) * (1. - tw) * (1. - tw); }
     c += SUNC * (.05 * pow(max(mu, 0.), 5.) + .13 * pow(max(mu, 0.), 40.) + .3 * pow(max(mu, 0.), 500.));
+    c += normalize(SUNC) * vec3f(1., .62, .38) * .35 * pow(max(mu, 0.), 2.5) * (1. - .6 * y);
   }
   let gnd = select(mix(GND * .55, HORL * .8, tw), vec3f(.035, .03, .028), NIGHT);
   return mix(c, gnd, sat(-rd.y * 5.));
@@ -202,7 +203,7 @@ fn aerialAt(c: vec3f, cam: vec3f, wp: vec3f, sun: vec3f) -> vec3f {
   let od = select((1. - exp(-k * d)) / k, d, abs(k) < 1e-7) * exp(-max(cam.y, -30.) / HSCALE);
   let k2 = rd.y / 60.;
   let od2 = select((1. - exp(-k2 * d)) / k2, d, abs(k2) < 1e-7) * exp(-max(cam.y, -30.) / 60.);
-  let T = exp(-BETA * od - vec3f(1.2e-4, 1.3e-4, 1.45e-4) * od2);
+  let T = exp(-BETA * od * 1.6 - vec3f(1.2e-4, 1.3e-4, 1.45e-4) * od2);
   let ins = mix(skyCol(normalize(vec3f(rd.x, max(rd.y, 0.) * .3 + .012, rd.z)), sun), HORF * .9 + HORL * .1, ss(900., 6000., d) * .4);
   return c * T + ins * (1. - T);
 }
@@ -222,8 +223,8 @@ fn shK(s: vec3f) -> f32 { let e = min(min(s.x, 1. - s.x), min(s.y, 1. - s.y)); r
 fn shadow1(p: vec3f) -> f32 { let s = shUV(p); return mix(1., textureSampleCompareLevel(tSh, sS, s.xy, s.z), shK(s)); }
 fn shadow9(p: vec3f) -> f32 {
   if (LOW) { return shadow1(p); }
-  let s = shUV(p); let e = 1.25 / ${SHADOW}.; var a = 0.;
-  let r = h2(floor(p.xz * 61.) + floor(p.y * 47.)) * TAU; let cr = cos(r); let sr = sin(r);
+  let s = shUV(p); let e = 2.1 / ${SHADOW}.; var a = 0.;
+  let r = h2(floor(p.xz * 233.) + floor(p.y * 197.)) * TAU; let cr = cos(r); let sr = sin(r);
   for (var x = 0; x < 4; x++) { for (var y = 0; y < 4; y++) { let o = vec2f(f32(x), f32(y)) - 1.5; a += textureSampleCompareLevel(tSh, sS, s.xy + vec2f(o.x * cr - o.y * sr, o.x * sr + o.y * cr) * e, s.z); } }
   return mix(1., a / 16., shK(s));
 }
@@ -348,7 +349,7 @@ fn script(u: f32, v: f32, H: f32, fw: f32, sd: f32) -> f32 {
   // diamond dots above and below
   if (r3 > .58) { let dy = select(-.2, .52, r2 > .4) * H; d = min(d, abs(xs - (r1 - .5) * .03) + abs(y - dy) - .011); }
   let c = sat(-d / max(fw, 1e-4) + .5);
-  return mix(c, .5, ss(.008, .03, fw));
+  return mix(c, .6, ss(.008, .03, fw));
 }
 // polished marble floor. rgb = albedo, a = polish. Mataf: very white; aisles: bands and a star per bay; plaza: paving
 fn floorMat(p: vec2f, fw: f32, vein: f32) -> vec4f {
@@ -356,8 +357,8 @@ fn floorMat(p: vec2f, fw: f32, vein: f32) -> vec4f {
   let jx = abs(fract(l / vec2f(1.2, .8)) - .5) * vec2f(1.2, .8);
   let joint = max(cov(.6 - jx.x, .003, fw), cov(.4 - jx.y, .003, fw)) * (1. - ss(.004, .02, fw));
   let id = floor(l / vec2f(1.2, .8)); let hh = h2(id);
-  var mataf = vec3f(.885, .88, .865) * (.975 + .04 * hh) * (.96 + .05 * vein);
-  mataf = mix(mataf, vec3f(.70, .71, .72), vein * .16);
+  var mataf = vec3f(.80, .795, .78) * (.975 + .04 * hh) * (.96 + .05 * vein);
+  mataf = mix(mataf, vec3f(.62, .63, .65), vein * .3);
   mataf *= 1. - .38 * joint;
   // aisle: grey border band at each bay, a star in the middle of every bay
   let q = l - BAY * (floor(l / BAY) + .5); let aq = abs(q);
@@ -369,11 +370,11 @@ fn floorMat(p: vec2f, fw: f32, vein: f32) -> vec4f {
   // beyond the later arcade: grey-white paving with darker bands every 12 m
   let pq = abs(fract(p / 12.) - .5) * 12.;
   var pav = vec3f(.74, .73, .71) * (.95 + .07 * h2(floor(p / 1.5)));
-  pav = mix(pav, vec3f(.45, .44, .43), max(cov(6. - pq.x, .3, fw), cov(6. - pq.y, .3, fw)));
+  pav = mix(pav, vec3f(.45, .44, .43), max(cov(6. - pq.x, .3, fw), cov(6. - pq.y, .3, fw)) * (1. - ss(.05, .25, fw)));
   let inM = step(a.x, OT.x) * step(a.y, OT.y);
   let inA = step(a.x, SA.x) * step(a.y, SA.y) * (1. - inM);
   var c = mix(pav, ais, inA); c = mix(c, mataf, inM);
-  return vec4f(c, mix(mix(.25, .45, inA), .5, inM));
+  return vec4f(c, mix(mix(.25, .45, inA), .75, inM));
 }
 // a ray against the Kaaba box in its own frame: x = distance (or -1), y = height of the hit
 fn kaabaHit(o: vec3f, d: vec3f) -> vec2f {
@@ -405,7 +406,8 @@ fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
   let kh = kaabaHit(o, d);
   if (kh.x > 0.) {
     let band = step(BAND.x, kh.y) * step(kh.y, BAND.y);
-    col = mix(vec3f(.02, .02, .021) + lit * .01, vec3f(.95, .66, .26) * lit * .45, band);
+    let kc = mix(vec3f(.015, .015, .016) + lit * .006, vec3f(.95, .66, .26) * lit * .5, band);
+    col = mix(kc, col, .55 * ss(4., 40., kh.x));
   }
   return col;
 }
@@ -420,20 +422,20 @@ fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
   let fm = textureSample(tF, sC, i.wp.xz / 24000. + .5);
   let fwp = length(fwidth(i.wp.xz)); let fw3 = length(fwidth(i.wp)); let fwop = length(fwidth(i.op));
   let vt = textureSample(tD, sR, i.wp.xz * .11 + vec2f(.37, .71));
-  var bump = 1.; var gloss = .08; var alb = vec3f(.5); var emi = vec3f(0.); var metal = 0.; var vao = 1.; var polish = 0.; var pert = vec3f(0.);
+  var bump = 1.; var gloss = .08; var alb = vec3f(.5); var emi = vec3f(0.); var metal = 0.; var vao = 1.; var polish = 0.; var pert = vec3f(0.); var sheen = 0.;
   let flt = ss(.7, .92, n0.y);
   // facade coordinates: along the wall and up it, in the mesh's own frame
   let fu = select(i.op.z, i.op.x, abs(on.z) > abs(on.x)); let fv = i.op.y; let wall = 1. - ss(.45, .7, abs(on.y));
   let wfade = 1. - ss(.25, .6, fwidth(fu / 3.4) + fwidth(fv / 3.3));
   if (mat <= 1) {
     let gran = fm.g; let city = fm.b;
-    var gr = mix(vec3f(.24, .21, .19), vec3f(.38, .32, .27), A.c) * (.6 + .6 * B.h);
+    var gr = mix(vec3f(.25, .23, .22), vec3f(.40, .36, .32), A.c) * (.6 + .6 * B.h);
     gr = mix(gr, gr * vec3f(.62, .6, .6), ss(.5, .8, B.c) * .6);
     alb = mix(vec3f(.56, .46, .36), vec3f(.66, .56, .44), sat(A.c * .9 + Lg.a * .9 - .55)) * (.75 + .4 * mix(B.h, Lg.b, .45));
     alb = mix(alb, gr, sat(gran * 1.3) * (1. - .2 * flt));
     alb = mix(alb, mix(vec3f(.48, .46, .43) * (.9 + .14 * C.c), vec3f(.66, .63, .58), ss(.85, .97, city)), ss(.05, .25, city));
     let sq = abs(fract(i.wp.xz / 46.) - .5) * 46.; let sq2 = abs(fract(i.wp.xz / 230. + .3) - .5) * 230.;
-    let street = max(max(cov(sq.x, 2.5, fwp), cov(sq.y, 2.5, fwp)), max(cov(sq2.x, 7., fwp), cov(sq2.y, 7., fwp))) * ss(.2, .5, city);
+    let street = max(cov(sq.x, 2.5, fwp), cov(sq.y, 2.5, fwp)) * ss(.45, .75, city) * .5 * (1. - ss(.5, 3., fwp)); let _u = sq2;
     alb = mix(alb, vec3f(.2, .2, .21), street * .8);
     emi = vec3f(1., .7, .4) * LIGHTS * .03 * street * f32(NIGHT);
     bump = mix(.8, .2, ss(.05, .2, city)); gloss = .03;
@@ -442,7 +444,7 @@ fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
     let hh = hs(sd * 3.7);
     let ct = select(select(select(select(vec3f(.78, .73, .64), vec3f(.66, .60, .52), hh > .3), vec3f(.82, .81, .78), hh > .5), vec3f(.56, .55, .54), hh > .72), vec3f(.72, .62, .50), hh > .88);
     alb = select(vec3f(.80, .77, .71), ct, mat == 17) * (.86 + .2 * B.h) * (.94 + .1 * C.c);
-    if (mat == 17) { alb *= mix(vec3f(1.), vec3f(.86, .82, .76), ss(.35, .7, Lg.a)); }
+    if (mat == 17) { alb *= mix(vec3f(1.), vec3f(.82, .76, .68), ss(.3, .7, Lg.a)) * mix(vec3f(1.), vec3f(.84, .86, .9), ss(.4, .8, Lg.b)) * (.85 + .3 * hs(sd * 7.)); }
     if (mat == 17) {
       let bw = mix(2.6, 4.2, hs(sd * 11.)); let ww = mix(.2, .38, hs(sd * 13.));
       let wx = fract(fu / bw); let wy = fract(fv / 3.3); let flr = floor(fv / 3.3); let bay = floor(fu / bw);
@@ -527,7 +529,7 @@ fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
     let q = vec2f(u / .9, v / .62); let qf = fract(q + vec2f(.5 * floor(q.y), 0.)) - .5;
     let ogee = cov(abs(abs(qf.x) - .32 * cos(qf.y * 3.1416)) * .9, .035, fwop / .9 * .9);
     let weave = (1. - ss(.15, .5, fwop / .9)) * ogee;
-    alb = vec3f(.03, .028, .029) * (1. + .6 * weave); gloss = .36 + .3 * weave; bump = .02;
+    alb = vec3f(.026, .025, .026) * (1. + .4 * weave); gloss = .36 + .3 * weave; bump = .02;
     // the silk hangs in long shallow folds that only show in its sheen
     let tg = select(vec3f(1., 0., 0.), vec3f(0., 0., 1.), abs(on.x) > .7);
     pert = tg * (.07 * sin(u * 2.3 + 1.4 * sin(v * .31 + u)) + .035 * sin(u * 6.1 + v * .5)) * (1. - .7 * ss(BAND.x - .5, BAND.x, v) * ss(BAND.y + .5, BAND.y, v));
@@ -542,7 +544,7 @@ fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
     let roundel = cov(abs(rd - .26), .025, fw3) + cov(abs(rd - .17), .012, fw3) + cov(rd, .06, fw3);
     let inScript = step(.32, abs(pu)) * step(abs(bv - .5), .36);
     let scr = script(u + select(0., 37., ne), (bv - .14) / .72, .62, fwop, floor(u / pw) + select(1., 7., ne) + select(0., 13., abs(on.z) > .7));
-    gold = max(gold, inB * min(1., edge + roundel * (1. - inScript) + scr * inScript));
+    gold = max(gold, inB * min(1., edge + roundel * (1. - inScript) + scr * inScript + .12));
     // medallions beneath the band: a lantern-shaped outline round an eight-petalled rosette, two to each wall
     let pp = u - pw * 2. * (floor(u / (pw * 2.)) + .5);
     let mq = vec2f(pp / .55, (v - 7.45) / .62); let mr = length(mq); let ma = atan2(mq.y, mq.x);
@@ -574,7 +576,8 @@ fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
     gold = max(gold, cov(ce, .25, fw3) * inB * .8);
     let th = (1. - ss(.004, .02, fw3)) * (.75 + .25 * sin((u * 40. + v * 40.)));
     alb = mix(alb, vec3f(.98, .70, .30) * (.8 + .2 * th), gold); metal = gold; gloss = mix(gloss, .5, gold);
-    if (on.y > .7) { alb = vec3f(.60, .58, .55) * (.9 + .15 * B.h); gloss = .2; metal = 0.; }
+    sheen = (.05 + .06 * weave) * (1. - gold);
+    if (on.y > .7) { alb = vec3f(.60, .58, .55) * (.9 + .15 * B.h); gloss = .2; metal = 0.; sheen = 0.; }
     if (on.y < -.7) { alb = vec3f(.05); }
   } else if (mat == 31) {
     // the gold door: two leaves of raised panels, studs and borders
@@ -582,9 +585,10 @@ fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
     let c = vec2f(du / .45, dv / (h / 6.)); let qq = abs(fract(c) - .5);
     let fr = max(cov(qq.x - .42, .04, .02 + fw3), cov(qq.y - .44, .04, .02 + fw3));
     let rose = cov(abs(length((fract(c) - .5) * vec2f(.45, h / 6.)) - .09), .015, fw3);
-    alb = vec3f(1., .76, .34) * (1. - .45 * fr) * (1. - .3 * rose); metal = 1.; gloss = .7; bump = 0.;
+    alb = vec3f(.86, .62, .26) * (1. - .5 * fr) * (1. - .3 * rose); metal = 1.; gloss = .62; bump = 0.;
+    pert = vec3f(0., (fract(c.y) - .5) * .5, 0.) * fr;
   } else if (mat == 32) {
-    alb = select(vec3f(.70, .70, .69), vec3f(.03, .022, .02), i.m.w > .5); metal = select(.75, 0., i.m.w > .5); gloss = select(.5, .8, i.m.w > .5); bump = 0.;
+    alb = select(vec3f(.78, .74, .66), vec3f(.03, .022, .02), i.m.w > .5); metal = select(.85, 0., i.m.w > .5); gloss = select(.42, .7, i.m.w > .5); bump = 0.;
   } else if (mat == 33) {
     // Maqam Ibrahim: a gold lattice over dark glass
     let ang = atan2(i.op.z - ${MAQAM[1]}, i.op.x - ${MAQAM[0]}) * .7 / .22; let v = i.op.y / .22;
@@ -593,16 +597,16 @@ fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
     let rim = cov(abs(i.op.y - 1.8), .08, fw3) + cov(abs(i.op.y - .6), .05, fw3);
     let rib = cov(abs(fract(ang * .22 / .7 / TAU * 8.) - .5) * .7 * TAU / 8., .025, fwop) * step(2.0, i.op.y);
     let g_ = sat(bars * .8 * step(i.op.y, 2.0) + rim + rib);
-    let glass = select(vec3f(.05, .04, .025), vec3f(.30, .26, .19), i.op.y > 2.);
-    alb = mix(glass, vec3f(1., .74, .32), g_); metal = mix(.6, 1., g_); gloss = .92;
+    let glass = select(vec3f(.05, .04, .025), vec3f(.16, .15, .13), i.op.y > 2.);
+    alb = mix(glass, vec3f(1., .74, .32), g_); metal = mix(select(.6, .25, i.op.y > 2.), 1., g_); gloss = .95;
   } else if (mat == 34) {
     // the later arcade: white marble with grey bands, round arches with a grey voussoir band
-    alb = vec3f(.76, .75, .72) * (.88 + .16 * B.h) * (.94 + .1 * C.c);
+    alb = vec3f(.70, .69, .66) * (.88 + .16 * B.h) * (.94 + .1 * C.c);
     let bu = fract(fu / BAY) * BAY - BAY * .5;
-    var ys = 5.6; var hw = BAY * .5 - .75; var y0 = 0.;
-    if (fv > 9.5) { ys = 15.2; hw = BAY * .5 - .85; y0 = 9.5; }
-    if (fv > 19.) { ys = 24.6; hw = BAY * .5 - .85; y0 = 19.; }
-    let ad = archD(bu, fv, hw, ys, hw);
+    var ys = 5.2; var hw = BAY * .5 - .75; var y0 = 0.;
+    if (fv > 9.5) { ys = 14.6; hw = BAY * .5 - .85; y0 = 9.5; }
+    if (fv > 19.) { ys = 24.; hw = BAY * .5 - .85; y0 = 19.; }
+    let ad = archD(bu, fv, hw, ys, hw * 2. * .62);
     let vb = cov(ad.x - .18, .18, fw3) * step(-.5, ad.y) * wall;
     alb = mix(alb, vec3f(.46, .46, .47), vb);
     alb = mix(alb, vec3f(.55, .55, .56), cov(abs(fv - y0 - 1.2) - .25, .25, fw3) * wall * step(.5, abs(ad.x)));
@@ -621,7 +625,7 @@ fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
       let hd = abs(dot(p2, vec2f(cos(ha), -sin(ha)))) + max(-dot(p2, vec2f(sin(ha), cos(ha))) - 1., 0.) + max(dot(p2, vec2f(sin(ha), cos(ha))) - 10.5, 0.);
       let md = abs(dot(p2, vec2f(cos(ma), -sin(ma)))) + max(-dot(p2, vec2f(sin(ma), cos(ma))) - 1.5, 0.) + max(dot(p2, vec2f(sin(ma), cos(ma))) - 15.5, 0.);
       let hand = max(cov(hd, .5, fwc), cov(md, .32, fwc));
-      alb = mix(vec3f(.86, .88, .86), vec3f(.08, .36, .2), ring);
+      alb = mix(vec3f(.86, .88, .86), vec3f(.05, .24, .14), ring);
       alb = mix(alb, vec3f(1., .76, .34), sat(tick + cov(abs(r - 21.), .5, fwc)));
       alb = mix(alb, vec3f(.06, .06, .06), hand);
       emi = mix(vec3f(.9, 1., .95), vec3f(.15, 1., .45), ring) * (1. - hand) * (1. - sat(tick)) * LIGHTS * .45;
@@ -630,8 +634,9 @@ fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
       // the shaft: pale stone with vertical ribs and window bands
       alb = vec3f(.68, .64, .57) * (.9 + .12 * B.h);
       let rib = cov(abs(fract(fu / 4.) - .5) * 4. - 1.85, .12, fw3) * wall;
+      let wf2 = 1. - ss(.1, .3, fwop / 4.);
       let wb = step(.25, fract(fv / 4.)) * step(fract(fv / 4.), .7) * wall * step(fv, 380.) * (1. - rib);
-      alb = mix(alb, vec3f(.15, .17, .19), wb * .6 * wfade); alb *= 1. - .15 * rib;
+      alb = mix(alb, vec3f(.15, .17, .19), wb * .6 * wf2); alb = mix(alb, alb * .82, (1. - wf2) * wall * .5); alb *= 1. - .25 * rib;
       emi = vec3f(1., .78, .5) * .12 * LIGHTS * wb * wfade * step(.6, hs(floor(fv / 4.) * 3.1 + floor(fu / 4.)));
       emi += vec3f(.4, 1., .55) * .08 * LIGHTS * step(380., fv) * wall;
       gloss = .3; bump = .05;
@@ -646,7 +651,7 @@ fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
   } else if (mat == 38) {
     // the dim depth behind the later arcade's openings: a warm hall that recedes, lamps glowing in it at night
     let up = fract(fv / 9.5);
-    alb = vec3f(.16, .13, .10) * (.6 + .5 * up);
+    alb = vec3f(.07, .06, .05) * (.5 + .7 * (1. - up));
     let ch = cov(length(vec2f((fract(fu / BAY) - .5) * BAY, (up - .62) * 9.5)), .16, fwop);
     alb *= 1. - .35 * ss(.3, .9, up);
     emi = LAMPC * LIGHTS * (.025 + .04 * (1. - up)) + LAMPC * ch * LIGHTS * LIGHTS * .3; gloss = .05; bump = 0.;
@@ -660,6 +665,7 @@ fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
   let ndl = sat(dot(N, L));
   let am = (amb(N, so) + flood(i.wp, N) + GND * SUNC * .12 * aisle(KL(i.wp.xz), i.wp.y)) * ao + lamps(i.wp, N);
   var c = alb * (E * ndl + am) * (1. - metal * .85) + emi;
+  c += sheen * pow(1. - sat(abs(dot(N, V))), 1.6) * (amb(N, so) * 1.6 + E * .25 * sat(dot(N, L) + .3));
   let Hh = normalize(V + L);
   let spc = mix(vec3f(.04), alb, metal);
   c += E * spc * pow(sat(dot(N, Hh)), mix(8., 160., gloss)) * gloss * ndl * 4.;
@@ -748,8 +754,8 @@ struct VO { @builtin(position) cp: vec4f, @location(0) d: vec3f };
       let q = rd.xz / rd.y * 6000.;
       let r = vec2f(q.x * .96 + q.y * .28, q.y * .96 - q.x * .28) * vec2f(.00011, .00042) + vec2f(g.cam.w * .002, 0.);
       let n = fbm(vec3f(r, 1.3), 5) + .35 * (fbm(vec3f(r * 3.1, 4.1), 3) - .5);
-      let cov_ = ss(.64, .9, n) * ss(.03, .2, rd.y) * (1. - ss(.35, .9, rd.y));
-      let lit = mix(HORF * 1.35 + vec3f(.15, .05, .08), normalize(SUNC) * 2.6, pow(max(mu * .5 + .5, 0.), 4.)) * (.75 + .5 * fbm(vec3f(r * 7., 2.), 2));
+      let cov_ = ss(.56, .95, n) * ss(.03, .2, rd.y) * (1. - ss(.35, .9, rd.y));
+      let lit = mix(HORF * 1.25 + vec3f(.18, .08, .06), normalize(SUNC) * 2.8, pow(max(mu * .5 + .5, 0.), 3.)) * (.75 + .5 * fbm(vec3f(r * 7., 2.), 2));
       c = mix(c, lit, cov_ * .3);
     }
     c += SUNC * 9. * ss(.99988, .99994, mu);

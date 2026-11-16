@@ -8,7 +8,7 @@
 
 // time of day: the key light (the moon at night), sky colours, exposure and how bright the lamps are
 const TODS = [
-  { az: 68, el: 11, sunc: [2.8, 1.62, 1.0], zen: [.13, .24, .54], horL: [1.4, .8, .52], horF: [.64, .64, .74], gnd: [.80, .68, .58], expo: .6, rays: 1, lights: .2 },
+  { az: 68, el: 16, sunc: [2.8, 1.62, 1.0], zen: [.13, .24, .54], horL: [1.45, .82, .52], horF: [.80, .68, .72], gnd: [.80, .68, .58], expo: .55, rays: 1, lights: .2 },
   { az: 250, el: 24, sunc: [2.9, 2.1, 1.35], zen: [.10, .24, .58], horL: [1.35, .84, .44], horF: [.74, .68, .66], gnd: [.86, .70, .52], expo: .5, rays: 1, lights: 1 },
   { az: 140, el: 35, sunc: [.16, .19, .27], zen: [.004, .008, .022], horL: [.05, .045, .05], horF: [.02, .025, .04], gnd: [.05, .045, .04], expo: 2.4, rays: 0, lights: 6 },
 ];
@@ -23,9 +23,9 @@ const KL = (x, z) => [S2 * (x - z), S2 * (x + z)];
 const KHX = 5.2, KHZ = 6, KH = 13.1, BAND0 = 8.6, BAND1 = 9.55, DOORZ = 3.4, DOOR0 = 2.13, DOOR1 = 5.2, DOORW = .95;
 const MAQAM = [16.2, 3.4];
 // arcades: Ottoman inner row at |x| = OTX, |z| = OTZ, middle row 5 m further, the later arcade's face 10 m further
-const OTX = 40, OTZ = 55, BAY = 5, SAX = OTX + 10, SAZ = OTZ + 10, SAD = 18, SAH = 28.5;
+const OTX = 45, OTZ = 60, BAY = 5, SAX = OTX + 10, SAZ = OTZ + 10, SAD = 18, SAH = 19;
 // the clock tower complex (world, its own axes): base centre
-const CLOCK = [-111, 415];
+const CLOCK = [-232, 505];
 // minarets: world azimuth (degrees from north), distance, height class (0 ~89 m, 1 ~139 m)
 const MINS = [[188, 132, 0], [205, 136, 0], [252, 150, 0], [266, 152, 0], [312, 150, 0], [326, 150, 0], [30, 140, 0], [48, 142, 0], [118, 120, 0],
   [340, 300, 1], [356, 312, 1], [12, 312, 1], [26, 300, 1]];
@@ -35,7 +35,7 @@ const POSES_L = [
   [25, 1.7, -15, 0, 6.2, 1, 0],
   [13.5, 1.7, 9.5, 5.2, 5.4, 5.6, 0],
   [-27, 1.7, -12, 0, 6.5, -1.5, 0],
-  [42.5, 1.7, 28, 22, 4.6, -10, 0],
+  [47.3, 1.7, 33, 28, 3.6, -8, 0],
   [21.5, 1.7, 1.2, 9, 3.2, 4.2, 0],
   [205.1, 150, -205.1, -240.4, 150, 183.8, 1],
 ];
@@ -53,17 +53,18 @@ const FLY_L = [
   -22, 3, 0, 0, 7, 0,
   -15, 3, 18, -1, 6, 4,
   2, 3, 24, 5, 5, 6,
-  22, 3, 27.5, 42.5, 3, 27.5,
-  35, 3, 27.5, 42.5, 3.2, 15,
-  42.5, 3, 27.5, 42.5, 3.2, -20,
-  42.5, 3, 18, 42.5, 3.2, -20,
-  42.5, 3, 5, 35, 4, -20,
-  42.5, 3, -10, 30, 4, -17.5,
-  42.5, 3, -17.5, 20, 5, -17.5,
-  35, 4, -17.5, 0, 10, 0,
-  25, 42, -40, 0, 10, 20,
-  100, 95, -120, -100, 60, 100,
-  205.1, 150, -205.1, -240.4, 150, 183.8,
+  27, 3, 32.5, 47.5, 3, 32.5,
+  40, 3, 32.5, 47.5, 3.2, 20,
+  47.5, 3, 32.5, 47.5, 3.2, -20,
+  47.5, 3, 23, 47.5, 3.2, -20,
+  47.5, 3, 5, 40, 4, -20,
+  47.5, 3, -10, 35, 4, -17.5,
+  47.5, 3, -17.5, 25, 5, -17.5,
+  40, 4, -17.5, 0, 10, 0,
+  28, 26, -38, 0, 10, 20,
+  80, 85, -95, -150, 90, 120,
+  70, 150, -30, 0, 0, 4,
+  30, 175, 10, 0, 0, 2,
 ];
 const FLY = new Float32Array(FLY_L.length);
 for (let i = 0; i < FLY_L.length; i += 6) { const p = K(FLY_L[i], FLY_L[i + 2]), t = K(FLY_L[i + 3], FLY_L[i + 5]); FLY.set([p[0], FLY_L[i + 1], p[1], t[0], FLY_L[i + 4], t[1]], i); }
@@ -282,8 +283,8 @@ function makeWorld(FAR, flyPts) {
   box(door, KHX + .1, DOOR0, DOORZ - DOORW, KHX + .16, DOOR1, DOORZ + DOORW);
   box(gold, KHX + .1, DOOR0 - .08, DOORZ - .03, KHX + .22, DOOR1, DOORZ + .03);
   // the Mizab: a gold spout over the Hijr from the top of the north-west wall
-  gold.sweep([[0, KH - .3, -KHZ + .2], [0, KH - .5, -KHZ - 1.2], [0, KH - .62, -KHZ - 1.75]], .3, .2, null, true);
-  box(gold, -.24, KH - .42, -KHZ - .06, .24, KH - .12, -KHZ + .02);
+  gold.sweep([[0, KH - .3, -KHZ + .2], [0, KH - .5, -KHZ - 1.2], [0, KH - .62, -KHZ - 1.75]], .3, .06, null, true);
+  for (const sx of [-1, 1]) gold.sweep([[sx * .17, KH - .15, -KHZ + .1], [sx * .17, KH - .35, -KHZ - 1.2], [sx * .17, KH - .47, -KHZ - 1.75]], .05, .16, null, true);
   local(gold, 10); local(door, 31);
   // the Black Stone: a silver frame bent round the east corner, the dark stone inside it
   {
@@ -300,7 +301,7 @@ function makeWorld(FAR, flyPts) {
   const hijr = new Mesh(), HP = [];
   for (let k = 0; k <= 30; k++) { const a = k / 30 * PI; HP.push([5.05 * cos(a), .655, -KHZ - 2.35 - 7.2 * sin(a)]); }
   hijr.sweep(HP, 1.5, 1.31, null, true);
-  const hcap = HP.map(([x, , z]) => [x, 1.36, z]); hijr.sweep(hcap, 1.62, .1, null, true);
+  const hcap = HP.map(([x, , z]) => [x, 1.38, z]); hijr.sweep(hcap, 1.78, .14, null, true); hijr.sweep(HP.map(([x, , z]) => [x, .06, z]), 1.7, .12, null, true);
   local(hijr, 36, 2);
   for (let k = 0; k <= 30; k += 2) CC.push(HP[k][0], HP[k][2], .85, 1.4);
 
@@ -368,23 +369,23 @@ function makeWorld(FAR, flyPts) {
   for (const [x, z] of lamps) { const w = K(x, z); solid(lnBi, w[0], 0, w[1], 1, QK, 23, 0); solid(lnGi, w[0], 0, w[1], 1, QK, 22, rnd()); }
 
   // --- the later arcade: three storeys of round arches, a dim depth behind every opening
-  const sa = new Mesh(), saFill = new Mesh(), saBody = new Mesh();
+  const sa = new Mesh(), saFill = new Mesh(), saBody = new Mesh(), saCol = new Mesh();
   for (const s of [-1, 1]) for (const onX of [true, false]) {
     const fixed = s * (onX ? SAX : SAZ), lo = onX ? -SAZ : -SAX, hi = -lo;
     const P = (u, y, d) => (onX ? [fixed - s * d, y, u] : [u, y, fixed - s * d]), n = onX ? [-s, 0, 0] : [0, 0, -s];
     for (let u = lo; u < hi - .01; u += BAY) {
-      archPanel(sa, P, n, u, u + BAY, 0, 9.5, u + .75, u + BAY - .75, 0, 5.6, .5, 1.3, saFill);
-      archPanel(sa, P, n, u, u + BAY, 9.5, 19, u + .85, u + BAY - .85, 10.5, 15.2, .5, 1.1, saFill);
-      archPanel(sa, P, n, u, u + BAY, 19, SAH, u + .85, u + BAY - .85, 20, 24.6, .5, 1.1, saFill);
+      archPanel(sa, P, n, u, u + BAY, 0, 9.5, u + .75, u + BAY - .75, 0, 5.2, .62, 1.3, saFill);
+      archPanel(sa, P, n, u, u + BAY, 9.5, 19, u + .85, u + BAY - .85, 10.5, 14.6, .62, 1.1, saFill);
+      for (const [y0, y1] of [[10.5, 14.6]]) { const c = P(u + BAY / 2, 0, -.55); lathe(saCol, [[.3, y0], [.3, y0 + .35], [.21, y0 + .5], [.19, y1 - .3], [.3, y1]], 10, c[0], 0, c[2]); }
     }
     // cornices between the storeys, a parapet on top
-    for (const y of [9.5, 19, SAH]) { const a = P(lo, y, 0), b = P(hi, y + .55, .45); box(sa, min(a[0], b[0]), y - .1, min(a[2], b[2]), max(a[0], b[0]), y + .55, max(a[2], b[2])); }
+    for (const y of [9.5, SAH]) { const a = P(lo, y, 0), b = P(hi, y + .55, .45); box(sa, min(a[0], b[0]), y - .1, min(a[2], b[2]), max(a[0], b[0]), y + .55, max(a[2], b[2])); }
     const a = P(lo, SAH, -SAD), b = P(hi, SAH + 1.4, 0), c = P(hi, 0, -1.45); box(saBody, min(a[0], c[0]), 0, min(a[2], c[2]), max(a[0], c[0]), SAH, max(a[2], c[2]));
     box(sa, min(a[0], b[0]), SAH, min(a[2], b[2]), max(a[0], b[0]), SAH + 1.4, max(a[2], b[2]));
-    merlons(sa, P(lo, 0, .1)[0], P(lo, 0, .1)[2], P(hi, 0, .1)[0], P(hi, 0, .1)[2], SAH + 1.4, 1.6, 1);
+    { const a2 = P(lo, SAH + 1.4, .15), b2 = P(hi, SAH + 1.65, -.3); box(sa, min(a2[0], b2[0]), SAH + 1.4, min(a2[2], b2[2]), max(a2[0], b2[0]), SAH + 1.65, max(a2[2], b2[2])); }
     cbox(min(a[0], b[0]), max(a[0], b[0]), -5, SAH + 2, min(a[2], b[2]), max(a[2], b[2]));
   }
-  local(sa, 34, 0, .1); local(saFill, 38); local(saBody, 7, 0, .3);
+  local(sa, 34, 0, .1); local(saFill, 38); local(saBody, 7, 0, .3); local(saCol, 36, 4);
 
   // --- the larger expansions beyond: flat-roofed blocks, their facades painted with arcades
   const ex = new Mesh();
@@ -394,7 +395,6 @@ function makeWorld(FAR, flyPts) {
     merlons(ex, x0, z0, x1, z0, h, 1.8, 1.1); merlons(ex, x0, z1, x1, z1, h, 1.8, 1.1); merlons(ex, x0, z0, x0, z1, h, 1.8, 1.1); merlons(ex, x1, z0, x1, z1, h, 1.8, 1.1);
     // a few roof domes and stair houses break the long flat roofs
     lathe(exD, domeProf(7.5, 1.2, 1.05), 24, (x0 + x1) / 2, h, (z0 + z1) / 2);
-    for (const t of [.25, .75]) box(ex, mix(x0, x1, t) - 3, h, mix(z0, z1, 1 - t) - 3, mix(x0, x1, t) + 3, h + 3.5, mix(z0, z1, 1 - t) + 3);
   }
   local(ex, 7, 1, .5); local(exD, 37, 1);
 
@@ -414,7 +414,8 @@ function makeWorld(FAR, flyPts) {
     for (const [ox, oz, w, h] of [[-70, -25, 34, 262], [70, -25, 34, 248], [-70, 45, 32, 232], [70, 45, 32, 240], [-28, 58, 30, 210], [28, 58, 30, 220]]) {
       box(hot, cx + ox - w / 2, 92, cz + oz - w / 2, cx + ox + w / 2, h, cz + oz + w / 2);
       box(hot, cx + ox - w / 2 + 3, h, cz + oz - w / 2 + 3, cx + ox + w / 2 - 3, h + 12, cz + oz + w / 2 - 3);
-      lathe(hcr, [[w * .42, h + 12], [w * .4, h + 18], [w * .3, h + 26], [w * .14, h + 34], [1.2, h + 44], [0, h + 48]], 8, cx + ox, 0, cz + oz);
+      lathe(hcr, [[w * .42, h + 12], [w * .42, h + 17], [w * .34, h + 17.5], [w * .34, h + 23], [w * .24, h + 23.5], [w * .2, h + 30], [w * .1, h + 34]], 8, cx + ox, 0, cz + oz);
+      lathe(crown, [[w * .1, h + 34], [1.4, h + 42], [.5, h + 50], [0, h + 52]], 8, cx + ox, 0, cz + oz);
     }
     box(body, cx - 24, 92, cz - 24, cx + 24, 380, cz + 24);
     box(body, cx - 26, 380, cz - 26, cx + 26, 386, cz + 26);
@@ -430,7 +431,7 @@ function makeWorld(FAR, flyPts) {
     solid(add(hot), 0, 0, 0, 1, Q0, 35, 0, 0, 0);
     solid(add(body), 0, 0, 0, 1, Q0, 35, 0, 0, 0);
     solid(add(faceM), 0, 0, 0, 1, Q0, 35, 0, 0, 1);
-    solid(add(crown), 0, 0, 0, 1, Q0, 10, 0); solid(add(hcr), 0, 0, 0, 1, Q0, 35, 0, 0, 0);
+    solid(add(hcr), 0, 0, 0, 1, Q0, 35, 0, 0, 0); solid(add(crown), 0, 0, 0, 1, Q0, 10, 0);
     solid(finId, cx, 568, cz, 13, Q0, 10, 0);
   }
 
@@ -461,11 +462,6 @@ function makeWorld(FAR, flyPts) {
   for (const f of [[40, 26, -40, 30, 26, 1], [-55, 34, 30, 36, 24, -1], [30, 18, 60, 22, 16, -1], [-60, 50, -70, 50, 30, 1], [80, 40, 40, 30, 14, 1], [-20, 70, 110, 60, 20, -1]]) {
     const ss_ = rnd();
     for (let i = 0; i < f[4]; i++) birds.push(f[0], f[1], f[2], f[3], ss_ + rnd() * .2, f[5] * rr(.9, 1.1) * 7 / f[3], rr(.9, 1.15), rnd());
-  }
-  for (let k = 0; k < 9; k++) {
-    const a = rnd() * TAU, r = rr(14, 34), [cxl, czl] = [cos(a) * r, sin(a) * r * 1.3];
-    if (abs(cxl) < KHX + 3 && abs(czl) < KHZ + 10) continue;
-    for (let i = 0; i < 4 + (rnd() * 6 | 0); i++) { const w = K(cxl + rr(-2.5, 2.5), czl + rr(-2.5, 2.5)); birds.push(w[0], 0, w[1], 0, rnd(), rnd() * TAU, rr(1.25, 1.45), rnd()); }
   }
   const motes = new Float32Array(4000 * 4);
   for (let i = 0; i < motes.length; i++) motes[i] = rnd();
