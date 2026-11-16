@@ -8,9 +8,10 @@ Built with the `worldsmith` skill (`~/.shared/skills/worldsmith`), starting from
 
 - Phase: 7 (delivered locally, committed, nothing pushed). Critic loop stopped by the brief's rule: 5 critic
   iterations (on iter-02, 05, 06, 08, 10), highest severity "major" every time. Gate 1 NOT passed; gate 2 passes.
-- index.html: 87.5 kB, 36.1 kB gzipped. Load to menu ~0.8 s headless.
+- index.html: 87.7 kB, 36.2 kB gzipped. Load to menu ~0.8 s headless.
 - Perf (verify/final-dev/perf.txt, dev.html, 2560x1440, 60 s flight, RTX 3070 shared with other worlds rendering at
-  the same time, ~37% busy at the start): GPU avg 5.23 ms, p99 9.11, max 10.01. Earlier runs: 5.54/9.91/11.55
+  the same time): GPU avg 4.19 ms, p99 9.03, max 9.14 (final build). A run with the GPU ~37% busy
+  elsewhere: 5.23 / 9.11 / 10.01. Earlier runs: 5.54/9.91/11.55
   (iter-01), 4.87/6.66/7.45 (iter-09). Frame 16.67 ms (headless vsync).
 - index.html captured at High and Low (--storage haram=2) for each Time (--storage haramTime=0|1|2): 0 console
   errors in all six (verify/final-index-t*-q*). capture.mjs here accepts repeated --storage.
