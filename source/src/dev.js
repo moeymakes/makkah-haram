@@ -42,3 +42,6 @@
 if (location.hash === '#capture') dynT = -Infinity;
 // capture hook: put the camera anywhere (flying, so it stays put) from a test script
 window.__look = (x, y, z, tx, ty, tz) => { fly = true; F[VX] = F[VY] = F[VZ] = 0; lookAt(x, y, z, tx, ty, tz); };
+
+// test hook: read the camera state from a test script
+window.__F = F; window.__fly = () => fly;
