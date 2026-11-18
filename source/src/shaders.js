@@ -102,7 +102,9 @@ const atmT = (h) => {
 const ATM_TS = atmT(ATM.alt), ATM_T6 = atmT(6), lum3 = (v) => v[0] * .2126 + v[1] * .7152 + v[2] * .0722;
 const ATM_NT = NIGHT ? [.62, .78, 1.3] : [1, 1, 1];
 const ATM_S = lum3(TD.sunc) / lum3(ATM_TS);
-const SUNCP = ATM_TS.map((v, c) => v * ATM_S * ATM_NT[c] * (NIGHT ? .7 : 1)), CLOUDSUN = ATM_T6.map((v, c) => v * ATM_S * ATM_NT[c]);
+// a low sun through the valley's dust is warmer than clear-air Mie gives at these elevations: tint the key per preset
+const KEYT = [[1.08, .97, .82], [1.16, .97, .7], [1, 1, 1]][TOD], KEYN = 1 / lum3(KEYT);
+const SUNCP = ATM_TS.map((v, c) => v * ATM_S * ATM_NT[c] * KEYT[c] * KEYN * (NIGHT ? .7 : 1)), CLOUDSUN = ATM_T6.map((v, c) => v * ATM_S * ATM_NT[c]);
 const fl3 = (v) => v.map((x) => x.toPrecision(5)).join(', ');
 const W_ATMC = /*wgsl*/`
 const RG = 6360.; const RT = 6460.; const HR = 8.; const HM = 1.2; const MG = .76;
@@ -526,8 +528,8 @@ fn floorMat(p: vec2f, fw: f32, vein: f32) -> vec4f {
   let jx = abs(fract(l / vec2f(1.2, .8)) - .5) * vec2f(1.2, .8);
   let joint = max(cov(.6 - jx.x, .003, fw), cov(.4 - jx.y, .003, fw)) * (1. - ss(.004, .02, fw));
   let id = floor(l / vec2f(1.2, .8)); let hh = h2(id);
-  var mataf = vec3f(.72, .715, .70) * (.975 + .04 * hh) * (.96 + .05 * vein);
-  mataf = mix(mataf, vec3f(.62, .63, .65), vein * .3);
+  var mataf = vec3f(.72, .715, .70) * (.96 + .07 * hh) * (.96 + .05 * vein) * (.965 + .05 * h2(floor(l / 4.8) + 7.));
+  mataf = mix(mataf, vec3f(.60, .61, .63), vein * .38);
   mataf *= 1. - .38 * joint;
   let jb = abs(fract(l / 4.8) - .5) * 4.8;
   mataf *= 1. - .25 * max(cov(2.4 - jb.x, .008, fw), cov(2.4 - jb.y, .008, fw)) * (1. - ss(.02, .06, fw));
@@ -607,7 +609,7 @@ fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
   let flt = ss(.7, .92, n0.y);
   // facade coordinates: along the wall and up it, in the mesh's own frame
   let fu = select(i.op.z, i.op.x, abs(on.z) > abs(on.x)); let fv = i.op.y; let wall = 1. - ss(.45, .7, abs(on.y));
-  let wfade = 1. - ss(.25, .6, fwidth(fu / 3.4) + fwidth(fv / 3.3));
+  let wfade = 1. - ss(.18, .42, fwidth(fu / 3.4) + fwidth(fv / 3.3));
   // rooms behind the glass show while a window is a dozen pixels or more across
   let ifade = 1. - ss(.15, .5, fwidth(fu) + fwidth(fv));
   if (mat <= 1) {
@@ -682,7 +684,7 @@ fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
       room = mix(room, mix(vec3f(.62, .55, .45), vec3f(.5, .52, .56), hs(rid + 23.)) * (g.amb.xyz * .2 + lamp * lit * .9), step(1. - cur, abs(wx - .5) / ww));
       emi = (room * ifade + vec3f(1., .66, .36) * .1 * lit * LIGHTS * (1. - ifade)) * win;
       // beyond the window grid: the average of lit windows, varied per building so the far city is not one lit sheet
-      emi += vec3f(1., .7, .4) * .016 * LIGHTS * (.2 + 1.6 * hs(sd * 43.)) * (1. - wfade) * wall * f32(NIGHT);
+      emi += vec3f(1., .7, .4) * .012 * LIGHTS * (.2 + 1.6 * hs(sd * 43.)) * (.3 + 1.4 * hs(floor(fv / 10.) * 3.3 + floor(fu / 12.) + sd)) * (1. - wfade) * wall * f32(NIGHT);
       // flat roofs: bare concrete, tar sheeting or white membrane
       let rh = hs(sd * 41.);
       let roof = select(select(vec3f(.44, .42, .38), vec3f(.15, .145, .14), rh > .55), vec3f(.6, .58, .54), rh > .85) * (.92 + .12 * C.c) * mix(1., .72, dAge);
@@ -753,7 +755,7 @@ fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
     alb = mix(vec3f(.46, .45, .45), vec3f(.60, .59, .57), ss(.4, .7, C.c)); gloss = .55; bump = .15;
   } else if (mat == 19) {
     let m = floorMat(i.wp.xz, fwp, (1. - ss(.0, .05 + fwp * .5, abs(vt.b - .52))) * .55 + ss(.45, .75, vt.a) * .1);
-    alb = m.rgb; polish = m.a * .42; bump = 0.; gloss = .6;
+    alb = m.rgb; polish = m.a * .5; bump = 0.; gloss = .6;
   } else if (mat == 30) {
     // the Kiswah: black silk with a woven pattern that only shows in the sheen, the gold band two-thirds up,
     // gold panels below it, and the embroidered surround of the door. The roof is pale stone.
@@ -869,7 +871,7 @@ fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
       let wf2 = 1. - ss(.1, .3, fwop / 4.);
       let wb = step(.25, fract(fv / 4.)) * step(fract(fv / 4.), .7) * wall * step(fv, 380.) * (1. - rib);
       alb = mix(alb, vec3f(.15, .17, .19), wb * .6 * wf2); alb = mix(alb, alb * .82, (1. - wf2) * wall * .5); alb *= 1. - .25 * rib;
-      emi = vec3f(1., .78, .5) * .12 * LIGHTS * wb * wfade * step(.6, hs(floor(fv / 4.) * 3.1 + floor(fu / 4.)));
+      emi = vec3f(1., .78, .5) * .12 * LIGHTS * (wb * wf2 * step(.6, hs(floor(fv / 4.) * 3.1 + floor(fu / 4.))) + (1. - wf2) * wall * step(fv, 380.) * .16);
       emi += vec3f(.4, 1., .55) * .08 * LIGHTS * step(380., fv) * wall;
       gloss = .3; bump = .05;
     }
@@ -1108,7 +1110,7 @@ fn tmap(x: vec3f) -> vec3f { return clamp((x * (2.51 * x + .03)) / (x * (2.43 * 
   let bl = textureSampleLevel(tB, sC, uv, 0.).rgb;
   c = mix(c, bl, .03) + bl * .012;
   // white balance per time: a camera left on daylight balance renders the low dawn light warm
-  c *= g.mis.x * vec3f(${[[1.07, 1, .88], [1.02, 1, .96], [1, 1, 1]][TOD].join(', ')});
+  c *= g.mis.x * vec3f(${[[1.07, 1, .88], [1.05, 1, .9], [1, 1, 1]][TOD].join(', ')});
   let q = uv - .5;
   c *= 1. - dot(q, q) * .45;
   c = tmap(c);
