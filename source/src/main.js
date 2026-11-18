@@ -40,6 +40,8 @@ const sClamp = device.createSampler({ magFilter: 'linear', minFilter: 'linear' }
 const sCmp = device.createSampler({ compare: 'less-equal', magFilter: 'linear', minFilter: 'linear' });
 const tShadow = tex(SHADOW, SHADOW, DEPTH, TU.RENDER_ATTACHMENT | TU.TEXTURE_BINDING);
 const tDummy = tex(1, 1, DEPTH, TU.RENDER_ATTACHMENT | TU.TEXTURE_BINDING);
+// the city, the clock tower and the Haram get their own static shadow map, baked once at load
+const SHC = LV ? 2048 : 4096, tShadowC = tex(SHC, SHC, DEPTH, TU.RENDER_ATTACHMENT | TU.TEXTURE_BINDING);
 const tDetail = tex(1024, 1024, 'rgba8unorm', TU.RENDER_ATTACHMENT | TU.TEXTURE_BINDING, { mips: 11 });
 const tFar = tex(FN, FN, 'rgba8unorm', TU.TEXTURE_BINDING | TU.COPY_DST);
 // the Kiswah's belt text: one 4096 x 384 row per wall (+x, +z, -x, -z), white glyphs on clear, full mip chain
@@ -71,19 +73,19 @@ let AMBUP;
   AMBUP = I.map((x, c) => x * ATM_S * ATM_NT[c] * (NIGHT ? .3 : 1));
   window.__atm = { sunc: SUNCP, ambup: AMBUP, S: ATM_S };
 }
-const UB = new Float32Array(84), UBS = new Float32Array(84);
-const ubo = device.createBuffer({ size: 336, usage: BU.UNIFORM | BU.COPY_DST }), uboS = device.createBuffer({ size: 336, usage: BU.UNIFORM | BU.COPY_DST });
+const UB = new Float32Array(100), UBS = new Float32Array(100), UBC = new Float32Array(100);
+const ubuf = () => device.createBuffer({ size: 400, usage: BU.UNIFORM | BU.COPY_DST }), ubo = ubuf(), uboS = ubuf(), uboC = ubuf();
 const VF = SS.VERTEX | SS.FRAGMENT;
 const bgl0 = device.createBindGroupLayout({ entries: [
   { binding: 0, visibility: VF, buffer: {} },
   { binding: 1, visibility: VF, sampler: {} }, { binding: 2, visibility: VF, sampler: {} }, { binding: 3, visibility: VF, sampler: { type: 'comparison' } },
   { binding: 4, visibility: VF, texture: { sampleType: 'depth' } }, { binding: 5, visibility: VF, texture: {} }, { binding: 8, visibility: VF, texture: {} }, { binding: 9, visibility: VF, texture: {} },
-  { binding: 10, visibility: VF, texture: {} }, { binding: 11, visibility: VF, texture: {} }] });
-const mkBG0 = (u, sh) => device.createBindGroup({ layout: bgl0, entries: [
+  { binding: 10, visibility: VF, texture: {} }, { binding: 11, visibility: VF, texture: {} }, { binding: 12, visibility: VF, texture: { sampleType: 'depth' } }] });
+const mkBG0 = (u, sh, shc) => device.createBindGroup({ layout: bgl0, entries: [
   { binding: 0, resource: { buffer: u } }, { binding: 1, resource: sRep }, { binding: 2, resource: sClamp }, { binding: 3, resource: sCmp },
   { binding: 4, resource: sh.createView() }, { binding: 5, resource: tDetail.createView() }, { binding: 8, resource: tFar.createView() }, { binding: 9, resource: tKiswah.createView() },
-  { binding: 10, resource: tSV.createView() }, { binding: 11, resource: tMSc.createView() }] });
-const bg0 = mkBG0(ubo, tShadow), bg0s = mkBG0(uboS, tDummy);
+  { binding: 10, resource: tSV.createView() }, { binding: 11, resource: tMSc.createView() }, { binding: 12, resource: shc.createView() }] });
+const bg0 = mkBG0(ubo, tShadow, tShadowC), bg0s = mkBG0(uboS, tDummy, tDummy), bg0c = mkBG0(uboC, tDummy, tDummy);
 for (let c = 0; c < 3; c++) UB[80 + c] = UBS[80 + c] = AMBUP[c];
 const pl0 = device.createPipelineLayout({ bindGroupLayouts: [bgl0] });
 
@@ -135,24 +137,30 @@ for (let i = 1; i <= 8; i++) { const h = (b) => { let f = 1, r = 0, n = i; while
 const PVP = new Float32Array(16);
 let frameN = 0, histReset = 1, ping = 0, pcx = 0, pcy = 0, pcz = 0;
 
-// ---------------------------------------------------------------- key light + shadow matrix over the Mataf and the arcades
-{
+// ---------------------------------------------------------------- key light + shadow matrices: the Mataf and arcades, and the city
+// orthographic light matrix round a box (x, y, z ranges), written into m[0..15]; dz extends the depth range sunward
+function lightMat(m, X, Y, Z, dz) {
   const L = SUN, lr = [L[2], 0, -L[0]], ll = hypot(...lr); lr[0] /= ll; lr[2] /= ll;
   const lu = [L[1] * lr[2] - L[2] * lr[1], L[2] * lr[0] - L[0] * lr[2], L[0] * lr[1] - L[1] * lr[0]];
   const ext = [[1e9, -1e9], [1e9, -1e9], [1e9, -1e9]];
-  for (const x of [-118, 118]) for (const y of [0, 36]) for (const z of [-118, 118]) {
+  for (const x of X) for (const y of Y) for (const z of Z) {
     const p = [x, y, z];
     [lr, lu, L].forEach((a, k) => { const d = p[0] * a[0] + p[1] * a[1] + p[2] * a[2]; ext[k][0] = min(ext[k][0], d); ext[k][1] = max(ext[k][1], d); });
   }
-  const m = UBS, hx = (ext[0][1] - ext[0][0]) / 2, cx = (ext[0][1] + ext[0][0]) / 2, hy = (ext[1][1] - ext[1][0]) / 2, cy = (ext[1][1] + ext[1][0]) / 2;
-  const d0 = ext[2][0] - 5, d1 = ext[2][1] + 120, dd = d1 - d0;
+  const hx = (ext[0][1] - ext[0][0]) / 2, cx = (ext[0][1] + ext[0][0]) / 2, hy = (ext[1][1] - ext[1][0]) / 2, cy = (ext[1][1] + ext[1][0]) / 2;
+  const d0 = ext[2][0] - 5, d1 = ext[2][1] + dz, dd = d1 - d0;
   m[0] = lr[0] / hx; m[4] = lr[1] / hx; m[8] = lr[2] / hx; m[12] = -cx / hx;
   m[1] = lu[0] / hy; m[5] = lu[1] / hy; m[9] = lu[2] / hy; m[13] = -cy / hy;
   m[2] = -L[0] / dd; m[6] = -L[1] / dd; m[10] = -L[2] / dd; m[14] = d1 / dd;
   m[3] = 0; m[7] = 0; m[11] = 0; m[15] = 1;
-  for (let i = 0; i < 16; i++) { UBS[16 + i] = m[i]; UB[16 + i] = m[i]; }
-  for (let i = 0; i < 3; i++) { UB[48 + i] = UBS[48 + i] = SUN[i]; }
-  UBS[32] = 0; UBS[33] = 300; UBS[34] = 0; UBS[35] = 0; UBS[58] = 1;
+}
+{
+  lightMat(UBS, [-118, 118], [0, 36], [-118, 118], 120);
+  lightMat(UBC, [-1500, 1500], [-20, 610], [-1500, 1500], 60);
+  for (let i = 0; i < 16; i++) { UBS[16 + i] = UB[16 + i] = UBS[i]; UB[84 + i] = UBS[84 + i] = UBC[i]; }
+  for (let i = 0; i < 3; i++) { UB[48 + i] = UBS[48 + i] = UBC[48 + i] = SUN[i]; }
+  for (const u of [UBS, UBC]) { u[32] = 0; u[33] = 300; u[34] = 0; u[35] = 0; u[58] = 1; }
+  Q.writeBuffer(uboC, 0, UBC);
 }
 
 // ---------------------------------------------------------------- world generation
@@ -291,6 +299,14 @@ function drawShadow(e) {
   r.setPipeline(pSolidSh); r.setVertexBuffer(0, vbMesh); r.setVertexBuffer(1, ibSolids); r.setIndexBuffer(ibMesh, 'uint32');
   for (const i of shadowCast) { const g = Wd.solids.ranges[i]; if (g[1]) r.drawIndexed(meshes[i].ib.length, g[1], meshes[i].i0, meshes[i].v0, g[0]); }
   r.end();
+}
+{
+  const e = device.createCommandEncoder();
+  const r = e.beginRenderPass({ colorAttachments: [], depthStencilAttachment: { view: tShadowC.createView(), depthClearValue: 1, depthLoadOp: 'clear', depthStoreOp: 'store' } });
+  r.setBindGroup(0, bg0c); r.setPipeline(pSolidSh); r.setVertexBuffer(0, vbMesh); r.setVertexBuffer(1, ibSolids); r.setIndexBuffer(ibMesh, 'uint32');
+  for (let i = 1; i < NSOL; i++) { const g = Wd.solids.ranges[i]; if (g[1]) r.drawIndexed(meshes[i].ib.length, g[1], meshes[i].i0, meshes[i].v0, g[0]); }
+  r.end();
+  Q.submit([e.finish()]);
 }
 Wd.fmap = 0;
 

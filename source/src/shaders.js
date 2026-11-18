@@ -278,7 +278,7 @@ const f3 = (a) => `vec3f(${a.map((v) => (+v).toFixed(4)).join(', ')})`;
 const S_G = /*wgsl*/`
 // pvp: last frame's unjittered view-projection; jit: xy this frame's projection jitter in NDC, z history reset (1), w frame
 // amb: sky light on an up-facing white surface, integrated from the sky-view LUT at load
-struct G { vp: mat4x4f, sm: mat4x4f, cam: vec4f, right: vec4f, up: vec4f, fwd: vec4f, sun: vec4f, res: vec4f, mis: vec4f, pvp: mat4x4f, jit: vec4f, amb: vec4f };
+struct G { vp: mat4x4f, sm: mat4x4f, cam: vec4f, right: vec4f, up: vec4f, fwd: vec4f, sun: vec4f, res: vec4f, mis: vec4f, pvp: mat4x4f, jit: vec4f, amb: vec4f, smc: mat4x4f };
 const SUNC = vec3f(${fl3(SUNCP)}); const CLOUDSUN = vec3f(${fl3(CLOUDSUN)});
 // sky radiance per unit of the LUT: pi * solar scale, because surfaces here take SUNC as irradiance / pi
 const SKYS = vec3f(${fl3(ATM_NT.map((v) => v * ATM_S * PI * (NIGHT ? .45 : 1)))});
@@ -325,6 +325,15 @@ const S_B = S_G + W_ATMC + /*wgsl*/`
 @group(0) @binding(9) var tK: texture_2d<f32>;
 @group(0) @binding(10) var tSV: texture_2d<f32>;
 @group(0) @binding(11) var tMS: texture_2d<f32>;
+@group(0) @binding(12) var tShC: texture_depth_2d;
+// the city map: 2x2 taps, 1 outside its box
+fn shadowC(p: vec3f) -> f32 {
+  let s = g.smc * vec4f(p, 1.); let uv = vec2f(s.x * .5 + .5, .5 - s.y * .5);
+  let inb = step(abs(s.x), .995) * step(abs(s.y), .995);
+  let e = .7 / ${LV ? 2048 : 4096}.; var a = 0.;
+  for (var k = 0; k < 4; k++) { a += textureSampleCompareLevel(tShC, sS, uv + vec2f(f32(k & 1) - .5, f32(k >> 1) - .5) * e, s.z - .00012); }
+  return mix(1., a * .25, inb);
+}
 // sky radiance in direction rd, from the sky-view LUT; at night the lit city glows low on the horizon all round.
 // Below the horizon it turns to the valley floor's colour.
 fn skyCol(rd: vec3f, sun: vec3f) -> vec3f {
@@ -362,13 +371,13 @@ fn airAt(cam: vec3f, wp: vec3f, sun: vec3f) -> Air {
 fn aerialAt(c: vec3f, cam: vec3f, wp: vec3f, sun: vec3f) -> vec3f { let a = airAt(cam, wp, sun); return c * a.t + a.i; }
 fn shUV(p: vec3f) -> vec3f { let s = g.sm * vec4f(p, 1.); return vec3f(s.x * .5 + .5, .5 - s.y * .5, s.z - .0003); }
 fn shK(s: vec3f) -> f32 { let e = min(min(s.x, 1. - s.x), min(s.y, 1. - s.y)); return ss(0., .01, e) * step(s.z, 1.); }
-fn shadow1(p: vec3f) -> f32 { let s = shUV(p); return mix(1., textureSampleCompareLevel(tSh, sS, s.xy, s.z), shK(s)); }
+fn shadow1(p: vec3f) -> f32 { let s = shUV(p); return mix(shadowC(p), textureSampleCompareLevel(tSh, sS, s.xy, s.z), shK(s)); }
 fn shadow9(p: vec3f) -> f32 {
   if (LOW) { return shadow1(p); }
   let s = shUV(p); let e = 2.1 / ${SHADOW}.; var a = 0.;
   let r = h2(floor(p.xz * 233.) + floor(p.y * 197.)) * TAU; let cr = cos(r); let sr = sin(r);
   for (var x = 0; x < 4; x++) { for (var y = 0; y < 4; y++) { let o = vec2f(f32(x), f32(y)) - 1.5; a += textureSampleCompareLevel(tSh, sS, s.xy + vec2f(o.x * cr - o.y * sr, o.x * sr + o.y * cr) * e, s.z); } }
-  return mix(1., a / 16., shK(s));
+  return mix(shadowC(p), a / 16., shK(s));
 }
 // 1 when p is under the roof of an arcade aisle (Ottoman: between the inner row and the later arcade)
 fn aisle(l: vec2f, y: f32) -> f32 {
@@ -829,7 +838,7 @@ fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
   let L = g.sun.xyz; let V = normalize(g.cam.xyz - i.wp);
   let so = select(skyOcc(i.wp + n0 * .3), 1., far || mat == 17 || mat == 35);
   let ao = so * vao * select(1., mix(1., i.ao, .6), far || mat == 25 || mat == 34 || mat == 20);
-  let sh = select(shadow9(i.wp + n0 * (.12 + dist * .002) + g.sun.xyz * .1), sat(i.ao * 1.6 - .3), far);
+  let sh = select(shadow9(i.wp + n0 * (.12 + dist * .002) + g.sun.xyz * .1), sat(i.ao * 1.6 - .3) * shadowC(i.wp + n0 * 1.5 + g.sun.xyz), far);
   let E = SUNC * sh * select(1., .15, mat == 38);
   let ndl = sat(dot(N, L));
   let am = (amb(N, so) + flood(i.wp, N) + GND * SUNC * .12 * aisle(KL(i.wp.xz), i.wp.y)) * ao + lamps(i.wp, N);
