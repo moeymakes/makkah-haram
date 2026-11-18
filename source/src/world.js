@@ -225,6 +225,69 @@ function meshCityBox(w, h, d, step) {
   lathe(m, [[.9, h + .9], [.9, h + 2.4], [0, h + 2.6]], 6, -w * .32, 0, d * .28);
   return m;
 }
+// near-city massing (within ~1 km of the Kaaba). Parts carry a sub-material in the vertex aux, read by the facade
+// shader (material 17): -.25 carved wood, -.5 metal and plastic, -.75 bare concrete or stone trim; 1 = wall with windows.
+// Hotel towers get a podium, pilasters, floor bands every five storeys and a crown; low blocks get balconies, roshan
+// boxes, AC units, a stair room and tanks.
+const WOOD = -.25, METAL = -.5, CONC = -.75;
+function meshCityDetail(w, h, d, step) {
+  const m = new Mesh(), F = 3.3, nf = round(h / F), W2 = w / 2, D2 = d / 2;
+  rseed(900 + round(w * 7 + h * 13 + d * 3));
+  const ring = (x0, z0, x1, z1, y, ht, t, a = CONC) => {
+    box(m, x0, y, z0, x1, y + ht, z0 + t, a); box(m, x0, y, z1 - t, x1, y + ht, z1, a);
+    box(m, x0, y, z0 + t, x0 + t, y + ht, z1 - t, a); box(m, x1 - t, y, z0 + t, x1, y + ht, z1 - t, a);
+  };
+  const tank = (x, y, z, r, th) => lathe(m, [[r, 0, METAL], [r, th, METAL], [r * .8, th + .25, METAL], [0, th + .3, METAL]], 8, x, y, z);
+  if (h > 40) {
+    const ph = 3 * F;
+    box(m, -W2 - 2.5, 0, -D2 - 2.5, W2 + 2.5, ph, D2 + 2.5);
+    ring(-W2 - 2.6, -D2 - 2.6, W2 + 2.6, D2 + 2.6, ph, 1.1, .3);
+    box(m, -W2, ph, -D2, W2, h, D2);
+    // pilasters and floor bands give the tower faces relief that reads from the Mataf and the air
+    const pil = (len, n, fn) => { for (let k = 0; k <= n; k++) fn(-len / 2 + k * len / n); };
+    pil(w, max(2, round(w / 7.5)), (x) => { box(m, x - .4, ph, D2, x + .4, h, D2 + .55, CONC); box(m, x - .4, ph, -D2 - .55, x + .4, h, -D2, CONC); });
+    pil(d, max(2, round(d / 7.5)), (z) => { box(m, W2, ph, z - .4, W2 + .55, h, z + .4, CONC); box(m, -W2 - .55, ph, z - .4, -W2, h, z + .4, CONC); });
+    for (let y = ph + 5 * F; y < h - F; y += 5 * F) ring(-W2 - .4, -D2 - .4, W2 + .4, D2 + .4, y - .15, .35, .45);
+    ring(-W2 - .3, -D2 - .3, W2 + .3, D2 + .3, h, 2.6, .35);
+    if (step) { const s2 = h * .12; box(m, -W2 * .55, h, -D2 * .55, W2 * .55, h + s2, D2 * .55); ring(-W2 * .55 - .2, -D2 * .55 - .2, W2 * .55 + .2, D2 * .55 + .2, h + s2, 1.4, .3); }
+    const top = h + (step ? h * .12 : 0);
+    box(m, -W2 * .3, top, -D2 * .2, W2 * .1, top + 3.5, D2 * .25, METAL);
+    lathe(m, [[.35, 0, METAL], [.35, 9, METAL], [.12, 14, METAL], [0, 14.2, METAL]], 6, W2 * .3, top, -D2 * .3);
+    return m;
+  }
+  const back = step && h > 12 ? 1 : 0, hb = h - back * F, inset = rr(2.4, 3.6);
+  box(m, -W2, 0, -D2, W2, hb, D2);
+  if (back) { box(m, -W2, hb, -D2, W2, h, D2 - inset); ring(-W2, D2 - inset, W2, D2, hb, 1, .22); }
+  ring(-W2 - .05, -D2 - .05, W2 + .05, (back ? D2 - inset : D2) + .05, h, 1.05, .25);
+  box(m, -W2 - .12, 0, -D2 - .12, W2 + .12, .55, D2 + .12, CONC);
+  if (nf >= 4) {
+    const cols = [rr(-.38, -.15), rr(.12, .36)].map((k) => k * w), top = back ? nf - back : nf;
+    for (let f = 1; f < top; f++) for (const cx of cols) {
+      if (rnd() < .25) continue;
+      const y = f * F, bw = rr(2.6, 3.6);
+      box(m, cx - bw / 2, y - .18, D2, cx + bw / 2, y, D2 + 1.1, CONC);
+      box(m, cx - bw / 2, y, D2 + .95, cx + bw / 2, y + .95, D2 + 1.1, CONC);
+    }
+  } else {
+    for (const cx of [rr(-.35, -.1) * w, rr(.1, .35) * w]) {
+      const y = F + .3, bw = rr(2, 2.8);
+      box(m, cx - bw / 2, y, D2, cx + bw / 2, y + 2.5, D2 + .75, WOOD);
+      box(m, cx - bw / 2 - .1, y + 2.5, D2 - .05, cx + bw / 2 + .1, y + 2.75, D2 + .9, WOOD);
+      box(m, cx - bw / 2 + .2, y - .35, D2, cx + bw / 2 - .2, y, D2 + .55, WOOD);
+    }
+  }
+  for (let k = 0; k < 4 + nf; k++) {
+    const f = 1 + floor(rnd() * max(1, (back ? nf - back : nf) - 1)), y = f * F + .35, side = floor(rnd() * 4), u = rr(-.4, .4);
+    const [x0, z0, x1, z1] = side === 0 ? [u * w - .42, D2, u * w + .42, D2 + .32] : side === 1 ? [u * w - .42, -D2 - .32, u * w + .42, -D2]
+      : side === 2 ? [W2, u * d - .42, W2 + .32, u * d + .42] : [-W2 - .32, u * d - .42, -W2, u * d + .42];
+    box(m, x0, y, z0, x1, y + .58, z1, METAL);
+  }
+  const sx = rr(-.3, .05) * w, sz = rr(-.35, -.1) * d - (back ? inset / 2 : 0);
+  box(m, sx, h, sz, sx + rr(2.6, 3.4), h + 2.9, sz + rr(3, 4.4));
+  box(m, sx - .1, h + 2.9, sz - .1, sx + 3.5, h + 3.15, sz + 4.5, CONC);
+  for (let k = 0; k < 3; k++) { const tx = W2 * .2 + k * 1.9, tz = -D2 * .4 - (back ? inset / 2 : 0); box(m, tx - .7, h, tz - .7, tx + .7, h + .5, tz + .7, METAL); tank(tx, h + .5, tz, .65, 1.4); }
+  return m;
+}
 function meshBird() {
   const m = new Mesh(), X = [.17, .1, 0, -.12, -.2], H = [.01, .045, .055, .04, .012];
   const rings = [];
@@ -433,6 +496,7 @@ function makeWorld(FAR, flyPts) {
   }
 
   // --- the city: hotel towers close round the Haram, lower houses climbing the valley sides
+  const detIds = CITY.map((d) => add(meshCityDetail(...d)));
   rseed(5);
   const cityIds = CITY.map((d) => add(meshCityBox(...d)));
   for (let dz = -3240; dz < 3240; dz += 360) for (let dx = -3240; dx < 3240; dx += 360) {
@@ -449,7 +513,7 @@ function makeWorld(FAR, flyPts) {
       let t = CITY_LOW[(rnd() * CITY_LOW.length) | 0];
       if (r < 850 && rnd() < .28 * sstep(900, 450, r)) t = CITY_TALL[(rnd() * CITY_TALL.length) | 0];
       const sc = rr(.85, 1.05) * (t > 5 ? rr(.55, .85) : 1), yaw = -ang + (rnd() < .5 ? 0 : PI / 2);
-      solid(cityIds[t], x, fh(x, z) - .5, z, sc, yawQ(yaw), 17, rnd(), 0, CITY[t][1] * sc);
+      solid((r < 1000 ? detIds : cityIds)[t], x, fh(x, z) - .5, z, sc, yawQ(yaw), 17, rnd(), 0, CITY[t][1] * sc);
     }
   }
 
@@ -474,6 +538,6 @@ function makeWorld(FAR, flyPts) {
     for (let i = 0; i < CC.length; i += 4) if (p[1] < CC[i + 3] && hypot(lx - CC[i], lz - CC[i + 1]) < CC[i + 2] + .6) { console.warn(`fly path at ${p.map((v) => v.toFixed(1))} grazes an obstacle`); break; }
   }
   return { fh, gy, meshes, solids: { data: new Float32Array(sol.data), ranges: sol.ranges },
-    birds: new Float32Array(birds), motes, fmap, CB: new Float64Array(CB), CC: new Float64Array(CC), farIds: new Set(cityIds) };
+    birds: new Float32Array(birds), motes, fmap, CB: new Float64Array(CB), CC: new Float64Array(CC), farIds: new Set([...cityIds, ...detIds]) };
 }
 const fract = (x) => x - floor(x);

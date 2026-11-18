@@ -624,7 +624,18 @@ fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
     alb = select(vec3f(.68, .65, .60), ct, mat == 17) * (.8 + .3 * B.h) * (.9 + .16 * C.c) * mix(1., .84, ss(.5, .82, A.c));
     alb *= mix(.72, 1., ss(0., 3.5, fv));
     if (mat == 17) { alb *= mix(vec3f(1.), vec3f(.82, .76, .68), ss(.3, .7, Lg.a)) * mix(vec3f(1.), vec3f(.84, .86, .9), ss(.4, .8, Lg.b)) * (.85 + .3 * hs(sd * 7.)); }
-    if (mat == 17) {
+    // near-city parts tagged in the vertex aux: carved wood, metal and plastic, bare concrete and stone trim
+    let sub = i.ao;
+    if (mat == 17 && sub < -.1) {
+      if (sub > -.4) {
+        let lat = step(.3, fract(fu * 5.)) * step(.3, fract(fv * 5.));
+        alb = mix(vec3f(.22, .13, .07), vec3f(.36, .22, .12), hs(sd * 19.)) * (.55 + .45 * lat) * (.85 + .3 * C.c); gloss = .15;
+      } else if (sub > -.65) {
+        alb = mix(vec3f(.62, .62, .6), vec3f(.48, .5, .52), hs(floor(fu * 2.) + sd)) * (.85 + .2 * B.h); gloss = .4;
+      } else {
+        alb = alb * vec3f(.93, .92, .92) * (.85 + .2 * B.h);
+      }
+    } else if (mat == 17) {
       let bw = mix(2.6, 4.2, hs(sd * 11.)); let ww = mix(.2, .38, hs(sd * 13.));
       let wx = fract(fu / bw); let wy = fract(fv / 3.3); let flr = floor(fv / 3.3); let bay = floor(fu / bw);
       let win = step(.5 - ww, wx) * step(wx, .5 + ww) * step(.28, wy) * step(wy, .78) * step(1., flr) * wall * step(fv, i.m.w - 1.) * wfade;
