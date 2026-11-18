@@ -82,7 +82,7 @@ const W_FS = /*wgsl*/`
 // media drive the sun colour (CPU, below), the sky (LUTs, main.js) and the aerial perspective.
 // turb: aerosol multiple of a clear sky. haze: the dusty boundary layer over the valley (per km, ~1 km deep) that
 // makes the ridges and the far city fade; dust: the 60 m ground layer
-const ATM = { turb: [7, 8, 12][TOD], haze: [.06, .075, .04][TOD], dust: [1.3, 1, 1][TOD], alt: .28 };
+const ATM = { turb: [10, 8, 12][TOD], haze: [.07, .075, .04][TOD], dust: [1.5, 1, 1][TOD], alt: .28 };
 const ATM_BR = [5.802e-3, 13.558e-3, 33.1e-3], ATM_BO = [.65e-3, 1.881e-3, .085e-3];
 const ATM_BMS = 3.996e-3 * ATM.turb, ATM_BME = [4.5e-3, 4.75e-3, 5.2e-3].map((v) => v * ATM.turb);
 const SUNV = SUN;
@@ -299,7 +299,7 @@ const DOOR = vec4f(${DOORZ}, ${DOOR0}, ${DOOR1}, ${DOORW});
 const OT = vec2f(${OTX}., ${OTZ}.); const SA = vec2f(${SAX}., ${SAZ}.); const BAY = ${BAY}.;
 const CLOCK = vec2f(${CLOCK[0]}., ${CLOCK[1]}.);
 // floodlight colour for the Mataf at night (warm white, 3000 K-ish), and the lamp colour
-const FLOODC = vec3f(1., .88, .72) * ${NIGHT ? '.36' : '0.'};
+const FLOODC = vec3f(1., .88, .72) * ${NIGHT ? '.2' : '0.'};
 const LAMPC = vec3f(1., .66, .34);
 fn sat(x: f32) -> f32 { return clamp(x, 0., 1.); }
 fn ss(a: f32, b: f32, x: f32) -> f32 { let t = clamp((x - a) / (b - a), 0., 1.); return t * t * (3. - 2. * t); }
@@ -517,7 +517,7 @@ fn floorMat(p: vec2f, fw: f32, vein: f32) -> vec4f {
   let jx = abs(fract(l / vec2f(1.2, .8)) - .5) * vec2f(1.2, .8);
   let joint = max(cov(.6 - jx.x, .003, fw), cov(.4 - jx.y, .003, fw)) * (1. - ss(.004, .02, fw));
   let id = floor(l / vec2f(1.2, .8)); let hh = h2(id);
-  var mataf = vec3f(.80, .795, .78) * (.975 + .04 * hh) * (.96 + .05 * vein);
+  var mataf = vec3f(.72, .715, .70) * (.975 + .04 * hh) * (.96 + .05 * vein);
   mataf = mix(mataf, vec3f(.62, .63, .65), vein * .3);
   mataf *= 1. - .38 * joint;
   let jb = abs(fract(l / 4.8) - .5) * 4.8;
@@ -525,13 +525,13 @@ fn floorMat(p: vec2f, fw: f32, vein: f32) -> vec4f {
   // aisle: grey border band at each bay, a star in the middle of every bay
   let q = l - BAY * (floor(l / BAY) + .5); let aq = abs(q);
   let star = min(max(aq.x, aq.y) - 1.2, (aq.x + aq.y) * .70711 - 1.2);
-  var ais = vec3f(.80, .78, .74) * (.96 + .05 * hh);
+  var ais = vec3f(.70, .68, .64) * (.96 + .05 * hh);
   ais = mix(ais, vec3f(.36, .35, .35), cov(BAY * .5 - max(aq.x, aq.y), .22, fw));
   ais = mix(ais, vec3f(.62, .52, .40), sat(-star / max(fw, 1e-3) + .5) * .7);
   ais = mix(ais, vec3f(.30, .29, .29), cov(abs(star), .05, fw));
   // beyond the later arcade: grey-white paving with darker bands every 12 m
   let pq = abs(fract(p / 12.) - .5) * 12.;
-  var pav = vec3f(.74, .73, .71) * (.95 + .07 * h2(floor(p / 1.5)));
+  var pav = vec3f(.62, .61, .59) * (.95 + .07 * h2(floor(p / 1.5)));
   pav = mix(pav, vec3f(.45, .44, .43), max(cov(6. - pq.x, .3, fw), cov(6. - pq.y, .3, fw)) * (1. - ss(.05, .25, fw)));
   let inM = step(a.x, OT.x) * step(a.y, OT.y);
   let inA = step(a.x, SA.x) * step(a.y, SA.y) * (1. - inM);
@@ -609,8 +609,11 @@ fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
   } else if (mat == 7 || mat == 17) {
     // plain stone (the expansions, 7, arcades painted on) and the city's hotels and houses (17, windows by floor)
     let hh = hs(sd * 3.7);
-    let ct = select(select(select(select(vec3f(.78, .73, .64), vec3f(.66, .60, .52), hh > .3), vec3f(.82, .81, .78), hh > .5), vec3f(.56, .55, .54), hh > .72), vec3f(.72, .62, .50), hh > .88);
-    alb = select(vec3f(.80, .77, .71), ct, mat == 17) * (.86 + .2 * B.h) * (.94 + .1 * C.c);
+    let ct = select(select(select(select(select(vec3f(.66, .60, .50), vec3f(.55, .49, .42), hh > .25), vec3f(.70, .69, .66), hh > .45), vec3f(.46, .45, .44), hh > .62), vec3f(.62, .52, .40), hh > .78), vec3f(.58, .56, .52), hh > .9);
+    // real pale stone and render reflect .6-.72 of the light, not .8+: brighter washes every sunlit wall to flat white.
+    // Plaster is never one flat tone: trowel marks, patches, broad stains, and grime at the foot of every wall
+    alb = select(vec3f(.68, .65, .60), ct, mat == 17) * (.8 + .3 * B.h) * (.9 + .16 * C.c) * mix(1., .84, ss(.5, .82, A.c));
+    alb *= mix(.72, 1., ss(0., 3.5, fv));
     if (mat == 17) { alb *= mix(vec3f(1.), vec3f(.82, .76, .68), ss(.3, .7, Lg.a)) * mix(vec3f(1.), vec3f(.84, .86, .9), ss(.4, .8, Lg.b)) * (.85 + .3 * hs(sd * 7.)); }
     if (mat == 17) {
       let bw = mix(2.6, 4.2, hs(sd * 11.)); let ww = mix(.2, .38, hs(sd * 13.));
@@ -634,7 +637,7 @@ fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
     bump = .05;
   } else if (mat == 25 || mat == 20) {
     // carved pale stone: ashlar courses; on the Ottoman arcade (w 1) alternating voussoirs round every arch
-    alb = select(vec3f(.80, .75, .66), vec3f(.84, .81, .75), mat == 20) * (.95 + .06 * B.h) * (.96 + .06 * C.c);
+    alb = select(vec3f(.70, .65, .56), vec3f(.72, .70, .65), mat == 20) * (.92 + .12 * B.h) * (.94 + .1 * C.c) * mix(.8, 1., ss(0., 2.5, fv));
     let cj = max(cov(abs(fract(fv / .55) - .5) * .55 - .27, .005, fw3), cov(abs(fract(fu / 1.1 + floor(fv / .55) * .5) - .5) * 1.1 - .54, .005, fw3)) * wall;
     alb *= 1. - .25 * cj * (1. - ss(.02, .06, fw3));
     let xs = min(abs(abs(i.op.x) - OT.x - .3), abs(abs(i.op.x) - OT.x - 5.3)) < .5;
@@ -643,13 +646,13 @@ fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
       let ad = archD(bu, fv, BAY * .5 - .32, 4.3, (BAY - .64) * .72);
       let bwid = .42;
       let vb = cov(ad.x - bwid * .5, bwid * .5, fw3) * step(-.5, ad.y) * step(fv, 7.9);
-      alb = mix(alb, select(vec3f(.84, .80, .72), vec3f(.36, .31, .27), fract(ad.y * .5) > .25), vb);
+      alb = mix(alb, select(vec3f(.72, .68, .60), vec3f(.36, .31, .27), fract(ad.y * .5) > .25), vb);
       alb = mix(alb, alb * .8, cov(ad.x - bwid - .05, .04, fw3) * step(fv, 7.9) * step(-.5, ad.y));
     }
     if (mat == 25 && on.y < -.7) {
       // aisle ceilings: a ring under every dome
       let q = (fract(vec2f(i.op.x, i.op.z) / BAY) - .5) * BAY;
-      alb = mix(vec3f(.86, .82, .74), vec3f(.55, .47, .36), max(cov(abs(length(q) - 1.9), .07, fwop), cov(abs(length(q) - 1.6), .03, fwop)));
+      alb = mix(vec3f(.72, .68, .60), vec3f(.50, .43, .33), max(cov(abs(length(q) - 1.9), .07, fwop), cov(abs(length(q) - 1.6), .03, fwop)));
     }
     if (mat == 20) {
       // minaret: blind pointed niches on the octagon faces of each stage, lit openings in the lantern, lamps under the balconies
@@ -674,7 +677,7 @@ fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
       for (var b = 0; b < 3; b++) { emi += vec3f(1., .7, .4) * .6 * LIGHTS * ss(bal[b] - .4, bal[b] + .6, y) * ss(bal[b] + 2.1, bal[b] + 1.3, y) * step(on.y, -.1); }
       alb = mix(alb, alb * vec3f(.9, .85, .76), cov(abs(fract(y / 3.05) - .5) * 3.05 - 1.48, .05, fw3 / k) * step(24., y));
       // at night the shafts are floodlit from their bases
-      emi += alb * vec3f(1., .9, .76) * .3 * f32(NIGHT) * ss(140. * k, 10., i.op.y) * (.6 + .4 * hs(sd * 9.));
+      emi += alb * vec3f(1., .9, .76) * .15 * f32(NIGHT) * ss(140. * k, 10., i.op.y) * (.6 + .4 * hs(sd * 9.));
     }
     bump = .05; gloss = .12;
   } else if (mat == 10) {
@@ -767,7 +770,7 @@ fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
     alb = mix(glass, vec3f(1., .74, .32), g_); metal = mix(select(.6, .25, i.op.y > 2.), 1., g_); gloss = .95;
   } else if (mat == 34) {
     // the later arcade: white marble with grey bands, round arches with a grey voussoir band
-    alb = vec3f(.70, .69, .66) * (.95 + .06 * B.h) * (.96 + .06 * C.c);
+    alb = vec3f(.64, .63, .60) * (.9 + .14 * B.h) * (.94 + .1 * C.c) * mix(.78, 1., ss(0., 3., fv));
     let bu = fract(fu / BAY) * BAY - BAY * .5;
     var ys = 5.2; var hw = BAY * .5 - .75; var y0 = 0.;
     if (fv > 9.5) { ys = 14.6; hw = BAY * .5 - .85; y0 = 9.5; }
@@ -798,7 +801,7 @@ fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
       metal = sat(tick) * .8; gloss = .5; bump = 0.;
     } else {
       // the shaft: pale stone with vertical ribs and window bands
-      alb = vec3f(.68, .64, .57) * (.9 + .12 * B.h);
+      alb = vec3f(.58, .54, .48) * (.88 + .16 * B.h);
       let rib = cov(abs(fract(fu / 4.) - .5) * 4. - 1.85, .12, fw3) * wall;
       let wf2 = 1. - ss(.1, .3, fwop / 4.);
       let wb = step(.25, fract(fv / 4.)) * step(fract(fv / 4.), .7) * wall * step(fv, 380.) * (1. - rib);
@@ -808,12 +811,12 @@ fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
       gloss = .3; bump = .05;
     }
   } else if (mat == 36) {
-    alb = vec3f(.86, .86, .84) * (.95 + .06 * B.h); gloss = .55; bump = .03;
+    alb = vec3f(.72, .72, .70) * (.93 + .1 * B.h); gloss = .55; bump = .03;
     alb = mix(alb, vec3f(.62, .62, .64), (1. - ss(.0, .03, abs(C.h - .52))) * .22);
-    if (i.m.w > 1.5 && i.m.w < 2.5) { alb = vec3f(.92, .91, .89) * (.97 + .04 * B.h); gloss = .7; alb = mix(alb, vec3f(.55, .55, .57), cov(abs(fv - 1.12), .03, fwop) + cov(abs(fv - .18), .05, fwop)); }
+    if (i.m.w > 1.5 && i.m.w < 2.5) { alb = vec3f(.76, .75, .73) * (.95 + .07 * B.h); gloss = .7; alb = mix(alb, vec3f(.55, .55, .57), cov(abs(fv - 1.12), .03, fwop) + cov(abs(fv - .18), .05, fwop)); }
   } else if (mat == 37) {
     let rib = cov(abs(fract(atan2(i.op.z - floor(i.op.z / BAY) * BAY - BAY * .5, i.op.x - floor(i.op.x / BAY) * BAY - BAY * .5) / TAU * 16.) - .5), .04, fw3 * 2.);
-    alb = vec3f(.70, .69, .66) * (.92 + .1 * B.h) * (1. - .12 * rib); gloss = .15; bump = .08;
+    alb = vec3f(.60, .60, .58) * (.88 + .16 * B.h) * (1. - .14 * rib); gloss = .15; bump = .08;
   } else if (mat == 38) {
     // the dim depth behind the later arcade's openings: a warm hall that recedes, lamps glowing in it at night
     let up = fract(fv / 9.5);
