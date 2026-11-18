@@ -103,7 +103,7 @@ const ATM_TS = atmT(ATM.alt), ATM_T6 = atmT(6), lum3 = (v) => v[0] * .2126 + v[1
 const ATM_NT = NIGHT ? [.62, .78, 1.3] : [1, 1, 1];
 const ATM_S = lum3(TD.sunc) / lum3(ATM_TS);
 // a low sun through the valley's dust is warmer than clear-air Mie gives at these elevations: tint the key per preset
-const KEYT = [[1.08, .97, .82], [1.16, .97, .7], [1, 1, 1]][TOD], KEYN = 1 / lum3(KEYT);
+const KEYT = [[1.1, .93, .86], [1.16, .97, .7], [1, 1, 1]][TOD], KEYN = 1 / lum3(KEYT);
 const SUNCP = ATM_TS.map((v, c) => v * ATM_S * ATM_NT[c] * KEYT[c] * KEYN * (NIGHT ? .7 : 1)), CLOUDSUN = ATM_T6.map((v, c) => v * ATM_S * ATM_NT[c]);
 const fl3 = (v) => v.map((x) => x.toPrecision(5)).join(', ');
 const W_ATMC = /*wgsl*/`
@@ -301,7 +301,7 @@ const DOOR = vec4f(${DOORZ}, ${DOOR0}, ${DOOR1}, ${DOORW});
 const OT = vec2f(${OTX}., ${OTZ}.); const SA = vec2f(${SAX}., ${SAZ}.); const BAY = ${BAY}.;
 const CLOCK = vec2f(${CLOCK[0]}., ${CLOCK[1]}.);
 // floodlight colour for the Mataf at night (warm white, 3000 K-ish), and the lamp colour
-const FLOODC = vec3f(1., .88, .72) * ${NIGHT ? '.2' : '0.'};
+const FLOODC = vec3f(1., .88, .72) * ${NIGHT ? '.28' : '0.'};
 const LAMPC = vec3f(1., .66, .34);
 fn sat(x: f32) -> f32 { return clamp(x, 0., 1.); }
 fn ss(a: f32, b: f32, x: f32) -> f32 { let t = clamp((x - a) / (b - a), 0., 1.); return t * t * (3. - 2. * t); }
@@ -342,6 +342,7 @@ fn skyCol(rd: vec3f, sun: vec3f) -> vec3f {
   var c = textureSampleLevel(tSV, sC, svUV(vec3f(rd.x, max(rd.y, 0.), rd.z)), 0.).rgb * SKYS;
   if (NIGHT) { c += vec3f(.30, .16, .07) * .22 * pow(sat(1. - max(rd.y, 0.) * 7.), 2.5); }
   let h = vec2f(rd.x, rd.z); let tw = .5 + .5 * dot(h / max(length(h), 1e-4), normalize(sun.xz));
+  if (${TOD === 0}) { c *= mix(vec3f(1.), vec3f(1.22, .98, .9), pow(sat(1. - max(rd.y, 0.) * 5.), 2.) * (.35 + .65 * tw * tw)); }
   let gnd = select(mix(GND * .55, HORL * .8, tw), vec3f(.035, .03, .028), NIGHT);
   return mix(c, gnd, sat(-rd.y * 5.));
 }
@@ -526,13 +527,13 @@ fn script(u: f32, v: f32, H: f32, fw: f32, sd: f32) -> f32 {
 fn floorMat(p: vec2f, fw: f32, vein: f32) -> vec4f {
   let l = KL(p); let a = abs(l);
   let jx = abs(fract(l / vec2f(1.2, .8)) - .5) * vec2f(1.2, .8);
-  let joint = max(cov(.6 - jx.x, .003, fw), cov(.4 - jx.y, .003, fw)) * (1. - ss(.004, .02, fw));
+  let joint = max(cov(.6 - jx.x, .003, fw), cov(.4 - jx.y, .003, fw)) * (1. - ss(.006, .035, fw));
   let id = floor(l / vec2f(1.2, .8)); let hh = h2(id);
   var mataf = vec3f(.72, .715, .70) * (.96 + .07 * hh) * (.96 + .05 * vein) * (.965 + .05 * h2(floor(l / 4.8) + 7.));
   mataf = mix(mataf, vec3f(.60, .61, .63), vein * .38);
   mataf *= 1. - .38 * joint;
   let jb = abs(fract(l / 4.8) - .5) * 4.8;
-  mataf *= 1. - .25 * max(cov(2.4 - jb.x, .008, fw), cov(2.4 - jb.y, .008, fw)) * (1. - ss(.02, .06, fw));
+  mataf *= 1. - .25 * max(cov(2.4 - jb.x, .008, fw), cov(2.4 - jb.y, .008, fw)) * (1. - ss(.03, .1, fw));
   // aisle: grey border band at each bay, a star in the middle of every bay
   let q = l - BAY * (floor(l / BAY) + .5); let aq = abs(q);
   let star = min(max(aq.x, aq.y) - 1.2, (aq.x + aq.y) * .70711 - 1.2);
@@ -995,7 +996,7 @@ struct VO { @builtin(position) cp: vec4f, @location(0) d: vec3f };
       let lit = (CLOUDSUN * (.05 + .45 * pow(max(mu, 0.), 4.)) + g.amb.xyz * .9) * (.75 + .5 * fbm(vec3f(r * 7., 2.), 2));
       c = mix(c, lit, cov_ * .3);
     }
-    c += SUNC * 9. * ss(.99988, .99994, mu);
+    let sd_ = sat((mu - .99986) / .00012); c += SUNC * 4.5 * ss(0., 1., sd_) * (.55 + .45 * sqrt(sd_)) + SUNC * .06 * pow(max(mu, 0.), 900.);
   }
   return fin(c);
 }
@@ -1107,10 +1108,10 @@ fn tmap(x: vec3f) -> vec3f { return clamp((x * (2.51 * x + .03)) / (x * (2.43 * 
     c = clamp(c + (c - (n0 + n1 + n2 + n3) * .25) * .8, min(min(min(n0, n1), min(n2, n3)), c), max(max(max(n0, n1), max(n2, n3)), c));
   }
   c += acc / ws;
-  let bl = textureSampleLevel(tB, sC, uv, 0.).rgb;
-  c = mix(c, bl, .03) + bl * .012;
+  let bl0 = textureSampleLevel(tB, sC, uv, 0.).rgb; let bl = bl0 * min(1., 2.5 / max(max(bl0.r, bl0.g), 1e-4));
+  c = mix(c, bl, .025) + bl * .01;
   // white balance per time: a camera left on daylight balance renders the low dawn light warm
-  c *= g.mis.x * vec3f(${[[1.07, 1, .88], [1.05, 1, .9], [1, 1, 1]][TOD].join(', ')});
+  c *= g.mis.x * vec3f(${[[1, .99, 1.01], [1.05, 1, .9], [1, 1, 1]][TOD].join(', ')});
   let q = uv - .5;
   c *= 1. - dot(q, q) * .45;
   c = tmap(c);

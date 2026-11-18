@@ -8,7 +8,7 @@
 
 // time of day: the key light (the moon at night), sky colours, exposure and how bright the lamps are
 const TODS = [
-  { az: 68, el: 13, sunc: [2.8, 1.62, 1.0], zen: [.13, .24, .54], horL: [1.45, .82, .52], horF: [.80, .68, .72], gnd: [.80, .68, .58], expo: .55, rays: 1, lights: .2 },
+  { az: 68, el: 13, sunc: [2.8, 1.62, 1.0], zen: [.13, .24, .54], horL: [1.45, .82, .52], horF: [.80, .68, .72], gnd: [.80, .68, .58], expo: .5, rays: 1, lights: .2 },
   { az: 250, el: 19, sunc: [2.9, 2.1, 1.35], zen: [.10, .24, .58], horL: [1.35, .84, .44], horF: [.74, .68, .66], gnd: [.86, .70, .52], expo: .42, rays: 1, lights: 1 },
   { az: 140, el: 35, sunc: [.16, .19, .27], zen: [.004, .008, .022], horL: [.05, .045, .05], horF: [.02, .025, .04], gnd: [.05, .045, .04], expo: 1.7, rays: 0, lights: 6 },
 ];

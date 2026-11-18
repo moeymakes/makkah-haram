@@ -391,7 +391,7 @@ let shadowDirty = 1;
 // ---------------------------------------------------------------- frame
 let hud = false, fly = false;
 let kf = 0, kb = 0, kl = 0, kr = 0, ku = 0, kd = 0, ks = 0, mdx = 0, mdy = 0, lkx = 0, lky = 0, l2x = 0, l2y = 0, hN = 0, hMax = 0, hMin = 1e9, hPer = 1e9, hLate = 0, hTot = 0, tId = -1, tN = 0, tx0 = 0, ty0 = 0, tx = 0, ty = 0;
-const TANH = 0.58, NEAR_ = 0.1, EXPO = TD.expo, RAYS = TD.rays;
+const TANH = 0.53, NEAR_ = 0.1, EXPO = TD.expo, RAYS = TD.rays;
 const submitList = [null];
 function render() {
   const cx = F[CX], cy = F[CY], cz = F[CZ], pitch = F[PIT], yaw = F[YAW];
