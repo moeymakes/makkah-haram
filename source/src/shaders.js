@@ -103,7 +103,7 @@ const ATM_TS = atmT(ATM.alt), ATM_T6 = atmT(6), lum3 = (v) => v[0] * .2126 + v[1
 const ATM_NT = NIGHT ? [.62, .78, 1.3] : [1, 1, 1];
 const ATM_S = lum3(TD.sunc) / lum3(ATM_TS);
 // a low sun through the valley's dust is warmer than clear-air Mie gives at these elevations: tint the key per preset
-const KEYT = [[1.1, .93, .86], [1.16, .97, .7], [1, 1, 1]][TOD], KEYN = 1 / lum3(KEYT);
+const KEYT = [[1.15, .92, .8], [1.16, .97, .7], [1, 1, 1]][TOD], KEYN = 1 / lum3(KEYT);
 const SUNCP = ATM_TS.map((v, c) => v * ATM_S * ATM_NT[c] * KEYT[c] * KEYN * (NIGHT ? .7 : 1)), CLOUDSUN = ATM_T6.map((v, c) => v * ATM_S * ATM_NT[c]);
 const fl3 = (v) => v.map((x) => x.toPrecision(5)).join(', ');
 const W_ATMC = /*wgsl*/`
@@ -412,7 +412,7 @@ fn skyOcc(p: vec3f) -> f32 {
 fn amb(n: vec3f, sky: f32) -> vec3f {
   let up = n.y * .5 + .5;
   let toSun = sat(dot(normalize(vec3f(n.x, 0., n.z) + vec3f(0., 1e-4, 0.)), normalize(vec3f(SUN_.x, 0., SUN_.z)))) * (1. - abs(n.y));
-  return HORL * .3 * toSun * toSun * (.4 + .6 * sky) + g.amb.xyz * vec3f(${TOD === 0 ? '1.02, .93, 1.08' : '1., 1., 1.'}) * up * up * (.35 + .65 * sky) + GND * .72 * (1. - up) * (.65 + .35 * sky) + GND * .16 * (.5 + .5 * sky);
+  return HORL * .3 * toSun * toSun * (.4 + .6 * sky) + g.amb.xyz * vec3f(${TOD === 0 ? '1.03, .96, 1.05' : '1., 1., 1.'}) * up * up * (.35 + .65 * sky) + GND * .72 * (1. - up) * (.65 + .35 * sky) + GND * .16 * (.5 + .5 * sky);
 }
 // the hanging lanterns in the inner Ottoman arches, as point lights on whatever is near them
 fn lamps(p: vec3f, n: vec3f) -> vec3f {
@@ -431,8 +431,9 @@ fn lamps(p: vec3f, n: vec3f) -> vec3f {
 // the floodlit Mataf at night: light from the arcade roofs all round and from above
 fn flood(p: vec3f, n: vec3f) -> vec3f {
   if (!NIGHT) { return vec3f(0.); }
-  let l = KL(p.xz); let d = length(abs(fract(l / 12.) - .5) * 12.);
-  return FLOODC * ss(170., 70., length(p.xz)) * (.55 + .45 * n.y) * (.7 + .55 * ss(6.5, 1., d));
+  // the masts' light overlaps into a soft, uneven wash rather than a pattern of pools
+  let w = textureSampleLevel(tD, sR, p.xz * .011 + .37, 0.).a * .65 + textureSampleLevel(tD, sR, p.xz * .029 + .71, 0.).b * .35;
+  return FLOODC * ss(170., 70., length(p.xz)) * (.55 + .45 * n.y) * (.72 + .6 * ss(.3, .75, w));
 }
 fn aerial(c: vec3f, wp: vec3f) -> vec3f { return aerialAt(c, g.cam.xyz, wp, g.sun.xyz); }
 // second target: the share of the pixel's light that is ambient (sky, bounce, floodlight), so screen-space AO
