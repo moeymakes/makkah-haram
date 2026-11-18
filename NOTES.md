@@ -8,24 +8,44 @@ Built with the `worldsmith` skill (`~/.shared/skills/worldsmith`), starting from
 
 ### Realism stages 1-3 (brief: ~/.config/Claude/side-session-notes/local_e46bf3a1-465b-49b7-b617-a09a30fa0fa1/realism-stages-brief.md)
 
-- 2026-11-18 16:58 AEDT. Branch `realism-s1`, NOT pushed, live site unchanged (live sha256 3c03cc50... = main's index.html).
-- Paused at 82% of the 5-hour usage window (stop line 85%); resume armed for ~20:07 AEDT.
+- 2026-11-18 21:50 AEDT. Stage 1 SHIPPED (fast-forward realism-s1 -> main) under the brief's fallback rule; stage 2 next
+  on branch `realism-s2`.
 - Metrics: `look-metrics.py --crop 0,.45,1,1` over 6 poses x 3 times at 1920x1080 (dev.html, `--flight-key KeyP`,
-  `--storage haramTime=N`); helper script: verify/sheet.sh (gitignored): montage 3x2 per time + MEAN rows.
+  `--storage haramTime=N`); helpers (verify/, gitignored): sheet.sh (montage 3x2 per time + MEAN rows), shots.sh
+  (README screenshots from a capture dir).
 
 | Step (verify/ dir) | clip% | flatwhite% | brightdetail | Notes |
 |---|---|---|---|---|
-| live baseline (s0-base) | 0.170 | 15.90 | 13.36 | night floor 30% flat white |
+| live baseline (s0-base) | 0.170 | 15.90 | 13.36 | per time bd: dawn 12.37, golden 11.54, night 16.16; night floor 30% flat white |
 | GTAO + TAA (s1-ao), 635326a | 0.151 | 15.42 | 12.98 | TAA costs ~3% brightdetail, as the skill predicts |
 | Hillaire sky (s1-sky), b9231b0 | 0.149 | 5.02 | 19.88 | deep blue sky, warm sun; dawn reads a bit like midday |
-| albedo + weathering (s1-alb), commit after b9231b0 | 0.147 | 1.25 | 20.62 | gates clip/flatwhite/brightdetail (+54%) already pass |
+| albedo + weathering (s1-alb), 77a1c81 | 0.147 | 1.25 | 20.62 | |
+| static city shadow map (s1-shc), b5aade9 | 0.146 | 1.22 | 20.79 | clock tower, hotels, minarets cast shadows past the near map |
+| near-city massing (s1-cd), e1bcd50 | 0.136 | 1.21 | 21.62 | |
+| interior-mapped windows (s1-win), faaf8ec | 0.086 | 1.22 | 21.54 | |
+| district tint (s1-dt), a501978 | 0.085 | 1.21 | 21.44 | |
+| exposure pass (s1-exp), 82064f8 | 0.085 | 1.21 | 21.36 | critic round 1: major |
+| fix 1 (s1-f1b), b854800 | 0.083 | 1.10 | 20.93 | critic round 2: major |
+| fix 2 (s1-f2b), a025cda | 0.066 | 0.87 | 22.03 | critic round 3: major |
+| fix 3 (s1-f3), f5b71de | 0.066 | 0.87 | 22.94 | critic round 4: major (my grid pools a new major) |
+| fix 4 = SHIPPED (s1-f4), 0988f50 | 0.066 | 0.87 | 22.45 (+68%) | per time bd: dawn 36.26, golden 14.88, night 16.22, all above live. Critic round 5: major |
 
-- Stage 1 still to do, in order: near-city massing + static city shadow map (the clock tower and city beyond the
-  +-118 m near map get no shadows today), interior-mapped city windows (night city reads as glowing white boxes from
-  the `(1 - wfade)` far glow at LIGHTS 6), district tint, exposure pass (dawn warmth, blue floor reflection at dawn),
-  then the stage gates: critic (sonnet, images only), perf 2560x1440 60 s flight, 0 errors at 3 times x 3 levels on
-  index.html, menu-preview, size (index.html 134.7 kB now).
-- Then stage 2 (Kaaba hizam proportions, mataf, porticoes, Clock Tower from cited sources; GI; clouds) and stage 3.
+- Stage 1 gates: clip 0.066 < .5 PASS; flatwhite 0.87 < 2 PASS; brightdetail +68% vs live PASS; perf PASS (2560x1440
+  High 60 s flight, GPU avg 5.00 ms, p99 7.72, max 8.55); 0 console errors at 3 times x 3 levels on index.html PASS;
+  menu-preview renders (phone/tablet/desktop, 0 errors) PASS; index.html 141.4 kB < 160 PASS.
+  Critic gate FAILED (highest major after 4 fix loops). Shipped by the fallback rule: every metric beats live and the
+  majors left in round 5 are out of stage 1's scope (city and street layout: stage 3; the Haram roof plazas, Mataf
+  floor, Ottoman colonnade floor/ceiling/columns: stage 2 heroes) or sky glow (the sun's veil in golden pose 4).
+  Dawn, flagged major in rounds 1-4 ("reads as midday"), was minor in round 5.
+- Critic recurring minors for stage 2: Black Stone ring oversized (reads as a porthole), mizab reads as a stick,
+  shadharwan wedge at the base, door reads as a window grid, Maqam smears and reads as a lantern, Hatim a plain tub,
+  clock tower a flat slab (needs crown, piers, darker podium), no moon in frame, uniform stars, birds sparkle.
+- Decisions in stage 1: dawn sun 16 -> 13 deg, golden 24 -> 19 deg (warmer, longer shadows; Mataf still partly lit);
+  key light tinted per preset for the valley dust; vertical FOV 60 -> 56 deg (critic: wide-angle stretch).
+- Next: stage 2 per the brief: hero landmarks from cited sources (Kaaba details, Mataf floor, Ottoman porticoes - 152
+  domes / 496 columns / 881 arches per Saudi Gazette, ours 176 domes on a composed 90 x 120 m rectangle -, the Clock
+  Tower), bounded GI (port Madinah 133f332 and its parent), clouds, critic's in-scope majors. Then stage 3 (DEM + OSM,
+  see Madinah 3551cdb, a692b24, bcad486).
 
 ### Original build
 
