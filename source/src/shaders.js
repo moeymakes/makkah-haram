@@ -82,7 +82,7 @@ const W_FS = /*wgsl*/`
 // media drive the sun colour (CPU, below), the sky (LUTs, main.js) and the aerial perspective.
 // turb: aerosol multiple of a clear sky. haze: the dusty boundary layer over the valley (per km, ~1 km deep) that
 // makes the ridges and the far city fade; dust: the 60 m ground layer
-const ATM = { turb: [10, 8, 12][TOD], haze: [.07, .075, .04][TOD], dust: [1.5, 1, 1][TOD], alt: .28 };
+const ATM = { turb: [10, 8, 12][TOD], haze: [.1, .075, .04][TOD], dust: [2.1, 1, 1][TOD], alt: .28 };
 const ATM_BR = [5.802e-3, 13.558e-3, 33.1e-3], ATM_BO = [.65e-3, 1.881e-3, .085e-3];
 const ATM_BMS = 3.996e-3 * ATM.turb, ATM_BME = [4.5e-3, 4.75e-3, 5.2e-3].map((v) => v * ATM.turb);
 const SUNV = SUN;
@@ -558,7 +558,8 @@ fn kaabaHit(o: vec3f, d: vec3f) -> vec2f {
 }
 // what the polished floor mirrors: the Kaaba (black, the gold band), the lit arcades, otherwise the sky
 fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
-  var col = skyCol(R, g.sun.xyz);
+  // honed-and-polished marble blurs the sky it mirrors, which pales its blue toward grey
+  var col = skyCol(R, g.sun.xyz); col = mix(col, vec3f(dot(col, vec3f(.3, .59, .11))), .35);
   let l = KL(p.xz); let o = vec3f(l.x, p.y, l.y);
   let d = vec3f(S2 * (R.x - R.z), R.y, S2 * (R.x + R.z));
   let lit = SUNC * .35 + amb(vec3f(0., .3, 0.), 1.) + FLOODC * 1.2;
@@ -752,7 +753,7 @@ fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
     alb = mix(vec3f(.46, .45, .45), vec3f(.60, .59, .57), ss(.4, .7, C.c)); gloss = .55; bump = .15;
   } else if (mat == 19) {
     let m = floorMat(i.wp.xz, fwp, (1. - ss(.0, .05 + fwp * .5, abs(vt.b - .52))) * .55 + ss(.45, .75, vt.a) * .1);
-    alb = m.rgb; polish = m.a * .5; bump = 0.; gloss = .6;
+    alb = m.rgb; polish = m.a * .42; bump = 0.; gloss = .6;
   } else if (mat == 30) {
     // the Kiswah: black silk with a woven pattern that only shows in the sheen, the gold band two-thirds up,
     // gold panels below it, and the embroidered surround of the door. The roof is pale stone.
@@ -1106,7 +1107,8 @@ fn tmap(x: vec3f) -> vec3f { return clamp((x * (2.51 * x + .03)) / (x * (2.43 * 
   c += acc / ws;
   let bl = textureSampleLevel(tB, sC, uv, 0.).rgb;
   c = mix(c, bl, .03) + bl * .012;
-  c *= g.mis.x;
+  // white balance per time: a camera left on daylight balance renders the low dawn light warm
+  c *= g.mis.x * vec3f(${[[1.07, 1, .88], [1.02, 1, .96], [1, 1, 1]][TOD].join(', ')});
   let q = uv - .5;
   c *= 1. - dot(q, q) * .45;
   c = tmap(c);
