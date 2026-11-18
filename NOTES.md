@@ -6,6 +6,29 @@ Built with the `worldsmith` skill (`~/.shared/skills/worldsmith`), starting from
 
 ## State (update after every step)
 
+### Realism stages 1-3 (brief: ~/.config/Claude/side-session-notes/local_e46bf3a1-465b-49b7-b617-a09a30fa0fa1/realism-stages-brief.md)
+
+- 2026-11-18 16:58 AEDT. Branch `realism-s1`, NOT pushed, live site unchanged (live sha256 3c03cc50... = main's index.html).
+- Paused at 82% of the 5-hour usage window (stop line 85%); resume armed for ~20:07 AEDT.
+- Metrics: `look-metrics.py --crop 0,.45,1,1` over 6 poses x 3 times at 1920x1080 (dev.html, `--flight-key KeyP`,
+  `--storage haramTime=N`); helper script was in the session scratchpad: montage 3x2 per time + MEAN rows.
+
+| Step (verify/ dir) | clip% | flatwhite% | brightdetail | Notes |
+|---|---|---|---|---|
+| live baseline (s0-base) | 0.170 | 15.90 | 13.36 | night floor 30% flat white |
+| GTAO + TAA (s1-ao), 635326a | 0.151 | 15.42 | 12.98 | TAA costs ~3% brightdetail, as the skill predicts |
+| Hillaire sky (s1-sky), b9231b0 | 0.149 | 5.02 | 19.88 | deep blue sky, warm sun; dawn reads a bit like midday |
+| albedo + weathering (s1-alb), commit after b9231b0 | 0.147 | 1.25 | 20.62 | gates clip/flatwhite/brightdetail (+54%) already pass |
+
+- Stage 1 still to do, in order: near-city massing + static city shadow map (the clock tower and city beyond the
+  +-118 m near map get no shadows today), interior-mapped city windows (night city reads as glowing white boxes from
+  the `(1 - wfade)` far glow at LIGHTS 6), district tint, exposure pass (dawn warmth, blue floor reflection at dawn),
+  then the stage gates: critic (sonnet, images only), perf 2560x1440 60 s flight, 0 errors at 3 times x 3 levels on
+  index.html, menu-preview, size (index.html 134.7 kB now).
+- Then stage 2 (Kaaba hizam proportions, mataf, porticoes, Clock Tower from cited sources; GI; clouds) and stage 3.
+
+### Original build
+
 - Phase: 7 (delivered locally, committed, nothing pushed). Critic loop stopped by the brief's rule: 5 critic
   iterations (on iter-02, 05, 06, 08, 10), highest severity "major" every time. Gate 1 NOT passed; gate 2 passes.
 - index.html: 87.7 kB, 36.2 kB gzipped. Load to menu ~0.8 s headless.
