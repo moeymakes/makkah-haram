@@ -342,7 +342,10 @@ fn skyCol(rd: vec3f, sun: vec3f) -> vec3f {
   var c = textureSampleLevel(tSV, sC, svUV(vec3f(rd.x, max(rd.y, 0.), rd.z)), 0.).rgb * SKYS;
   if (NIGHT) { c += vec3f(.30, .16, .07) * .22 * pow(sat(1. - max(rd.y, 0.) * 7.), 2.5); }
   let h = vec2f(rd.x, rd.z); let tw = .5 + .5 * dot(h / max(length(h), 1e-4), normalize(sun.xz));
-  if (${TOD === 0}) { c *= mix(vec3f(1.), vec3f(1.22, .98, .9), pow(sat(1. - max(rd.y, 0.) * 5.), 2.) * (.35 + .65 * tw * tw)); }
+  if (${TOD === 0}) {
+    c = mix(c, vec3f(dot(c, vec3f(.3, .59, .11))) * vec3f(1.06, .96, 1.04), .3);
+    c *= mix(vec3f(1.), vec3f(1.28, .97, .9), pow(sat(1. - max(rd.y, 0.) * 4.), 2.) * (.3 + .7 * tw * tw));
+  }
   let gnd = select(mix(GND * .55, HORL * .8, tw), vec3f(.035, .03, .028), NIGHT);
   return mix(c, gnd, sat(-rd.y * 5.));
 }
@@ -369,6 +372,7 @@ fn airAt(cam: vec3f, wp: vec3f, sun: vec3f) -> Air {
   let ms = textureSampleLevel(tMS, sC, vec2f(sun.y * .5 + .5, ALT / (RT - RG)), 0.).rgb;
   var ins = (SUNC * PI * (sR * phR(mu) + sM * phM(mu) + sD * phG(mu, .45)) + SKYS * ms * (sR + sM + sD)) * (vec3f(1.) - T) / max(tau, vec3f(1e-7));
   ins = mix(ins, skyCol(normalize(vec3f(rd.x, max(rd.y, 0.) * .3 + .012, rd.z)), sun) * (vec3f(1.) - T), ss(4000., 16000., d));
+  if (${TOD === 0}) { ins *= vec3f(1.02, .94, 1.06); }
   return Air(T, ins);
 }
 fn aerialAt(c: vec3f, cam: vec3f, wp: vec3f, sun: vec3f) -> vec3f { let a = airAt(cam, wp, sun); return c * a.t + a.i; }
@@ -408,7 +412,7 @@ fn skyOcc(p: vec3f) -> f32 {
 fn amb(n: vec3f, sky: f32) -> vec3f {
   let up = n.y * .5 + .5;
   let toSun = sat(dot(normalize(vec3f(n.x, 0., n.z) + vec3f(0., 1e-4, 0.)), normalize(vec3f(SUN_.x, 0., SUN_.z)))) * (1. - abs(n.y));
-  return HORL * .3 * toSun * toSun * (.4 + .6 * sky) + g.amb.xyz * up * up * (.35 + .65 * sky) + GND * .72 * (1. - up) * (.65 + .35 * sky) + GND * .16 * (.5 + .5 * sky);
+  return HORL * .3 * toSun * toSun * (.4 + .6 * sky) + g.amb.xyz * vec3f(${TOD === 0 ? '1.02, .93, 1.08' : '1., 1., 1.'}) * up * up * (.35 + .65 * sky) + GND * .72 * (1. - up) * (.65 + .35 * sky) + GND * .16 * (.5 + .5 * sky);
 }
 // the hanging lanterns in the inner Ottoman arches, as point lights on whatever is near them
 fn lamps(p: vec3f, n: vec3f) -> vec3f {
@@ -427,7 +431,8 @@ fn lamps(p: vec3f, n: vec3f) -> vec3f {
 // the floodlit Mataf at night: light from the arcade roofs all round and from above
 fn flood(p: vec3f, n: vec3f) -> vec3f {
   if (!NIGHT) { return vec3f(0.); }
-  return FLOODC * ss(170., 70., length(p.xz)) * (.55 + .45 * n.y);
+  let l = KL(p.xz); let d = length(abs(fract(l / 12.) - .5) * 12.);
+  return FLOODC * ss(170., 70., length(p.xz)) * (.55 + .45 * n.y) * (.7 + .55 * ss(6.5, 1., d));
 }
 fn aerial(c: vec3f, wp: vec3f) -> vec3f { return aerialAt(c, g.cam.xyz, wp, g.sun.xyz); }
 // second target: the share of the pixel's light that is ambient (sky, bounce, floodlight), so screen-space AO
