@@ -11,7 +11,7 @@ Built with the `worldsmith` skill (`~/.shared/skills/worldsmith`), starting from
 - 2026-11-18 16:58 AEDT. Branch `realism-s1`, NOT pushed, live site unchanged (live sha256 3c03cc50... = main's index.html).
 - Paused at 82% of the 5-hour usage window (stop line 85%); resume armed for ~20:07 AEDT.
 - Metrics: `look-metrics.py --crop 0,.45,1,1` over 6 poses x 3 times at 1920x1080 (dev.html, `--flight-key KeyP`,
-  `--storage haramTime=N`); helper script was in the session scratchpad: montage 3x2 per time + MEAN rows.
+  `--storage haramTime=N`); helper script: verify/sheet.sh (gitignored): montage 3x2 per time + MEAN rows.
 
 | Step (verify/ dir) | clip% | flatwhite% | brightdetail | Notes |
 |---|---|---|---|---|
