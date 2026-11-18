@@ -595,6 +595,10 @@ fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
   let ts = select(select(1., .035, far), .5, mat >= 5);
   let A = tri(i.op, on, .07 * ts); let B = tri(i.op, on, .31 * ts); let C = tri(i.op, on, 1.3 * ts);
   let Lg = textureSample(tD, sR, i.wp.xz * .0045 + .31);
+  // districts: two very low-frequency lookups (1.4 and 3.2 km periods) give whole neighbourhoods a shared age
+  // (grime, darker roofs, dust in the streets) and tone (warm ochre, cool grey, fresh whitewash)
+  let D1 = textureSample(tD, sR, i.wp.xz * .0007 + .17); let D2 = textureSample(tD, sR, i.wp.xz * .00031 + .63);
+  let dAge = ss(.38, .66, D1.a * .6 + D2.b * .4); let dTone = ss(.3, .7, D2.a); let dWash = ss(.62, .78, D1.b);
   let fm = textureSample(tF, sC, i.wp.xz / 24000. + .5);
   let fwp = length(fwidth(i.wp.xz)); let fw3 = length(fwidth(i.wp)); let fwop = length(fwidth(i.op));
   let vt = textureSample(tD, sR, i.wp.xz * .11 + vec2f(.37, .71));
@@ -614,7 +618,7 @@ fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
     alb = mix(alb, mix(vec3f(.48, .46, .43) * (.9 + .14 * C.c), vec3f(.66, .63, .58), ss(.85, .97, city)), ss(.05, .25, city));
     let sq = abs(fract(i.wp.xz / 46.) - .5) * 46.; let sq2 = abs(fract(i.wp.xz / 230. + .3) - .5) * 230.;
     let street = max(cov(sq.x, 2.5, fwp), cov(sq.y, 2.5, fwp)) * ss(.45, .75, city) * .5 * (1. - ss(.5, 3., fwp)); let _u = sq2;
-    alb = mix(alb, vec3f(.2, .2, .21), street * .8);
+    alb = mix(alb, mix(vec3f(.17, .165, .16) * (.85 + .3 * C.c), vec3f(.42, .39, .34), ss(.45, .75, Lg.a + dAge * .3)), street * .8);
     emi = vec3f(1., .7, .4) * LIGHTS * .03 * street * f32(NIGHT);
     bump = mix(.8, .2, ss(.05, .2, city)); gloss = .03;
   } else if (mat == 7 || mat == 17) {
@@ -625,7 +629,11 @@ fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
     // Plaster is never one flat tone: trowel marks, patches, broad stains, and grime at the foot of every wall
     alb = select(vec3f(.68, .65, .60), ct, mat == 17) * (.8 + .3 * B.h) * (.9 + .16 * C.c) * mix(1., .84, ss(.5, .82, A.c));
     alb *= mix(.72, 1., ss(0., 3.5, fv));
-    if (mat == 17) { alb *= mix(vec3f(1.), vec3f(.82, .76, .68), ss(.3, .7, Lg.a)) * mix(vec3f(1.), vec3f(.84, .86, .9), ss(.4, .8, Lg.b)) * (.85 + .3 * hs(sd * 7.)); }
+    if (mat == 17) {
+      alb *= mix(vec3f(1.), vec3f(.82, .76, .68), ss(.3, .7, Lg.a)) * mix(vec3f(1.), vec3f(.84, .86, .9), ss(.4, .8, Lg.b)) * (.85 + .3 * hs(sd * 7.));
+      alb = mix(alb * mix(vec3f(.93, .96, 1.02), vec3f(1.07, .98, .84), dTone), vec3f(.68, .66, .62) * (.92 + .1 * B.h), dWash * .7);
+      alb *= mix(1., .8, dAge * (1. - dWash));
+    }
     // near-city parts tagged in the vertex aux: carved wood, metal and plastic, bare concrete and stone trim
     let sub = i.ao;
     if (mat == 17 && sub < -.1) {
@@ -645,6 +653,9 @@ fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
       let frame = step(.5 - ww - .05, wx) * step(wx, .5 + ww + .05) * step(.24, wy) * step(wy, .82) * step(1., flr) * wall * step(fv, i.m.w - 1.) * wfade * (1. - win);
       // window frames: white on some buildings, dark aluminium on others
       alb = mix(alb, select(alb * 1.1 + .03, vec3f(.2, .2, .21), hs(sd * 37.) > .5), frame);
+      // grime washed down from the window sills, strongest just below each opening, heavier in old districts
+      let streak = ss(.5, .9, hs(floor(fu * 2.3) * 7.1 + sd * 3.) * (.7 + .6 * B.h)) * ss(.3, .0, wy) * step(1., flr) * wall * wfade;
+      alb *= 1. - (.12 + .2 * dAge) * streak * (.6 + .4 * hs(bay * 5.1 + sd));
       alb = mix(alb, vec3f(.05, .055, .06), win * .9);
       alb = mix(alb, alb * vec3f(.66, .65, .64), (1. - wfade) * wall * (.5 + .4 * hs(sd * 5.)));
       // interior mapping: intersect the view ray with this window's room (side walls, floor, ceiling, back wall) in
@@ -673,7 +684,7 @@ fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
       emi += vec3f(1., .7, .4) * .016 * LIGHTS * (.2 + 1.6 * hs(sd * 43.)) * (1. - wfade) * wall * f32(NIGHT);
       // flat roofs: bare concrete, tar sheeting or white membrane
       let rh = hs(sd * 41.);
-      let roof = select(select(vec3f(.44, .42, .38), vec3f(.15, .145, .14), rh > .55), vec3f(.6, .58, .54), rh > .85) * (.92 + .12 * C.c);
+      let roof = select(select(vec3f(.44, .42, .38), vec3f(.15, .145, .14), rh > .55), vec3f(.6, .58, .54), rh > .85) * (.92 + .12 * C.c) * mix(1., .72, dAge);
       alb = mix(alb, roof, ss(.6, .9, on.y));
       gloss = mix(.08, .55, win);
     } else {
