@@ -7,7 +7,7 @@
 //   node tools/capture.mjs ../dev.html --out ../verify/iter-01 --bench 60                  + benchmark report
 //   flags combine; --poses 0 skips stills; --chrome /path overrides the browser; --settle ms per pose (2000);
 //   --flight-key KeyP when the world uses F for itself (e.g. a walk/fly toggle);
-//   --storage key=value seeds localStorage before load (e.g. --storage madinah=2 to test the Low level)
+//   --storage key=value seeds localStorage before load, repeatable (e.g. --storage madinah=2 to test the Low level)
 //
 // Page contract (the skill's template follows it; Abyssal Garden's index.html does too):
 //   body.className  'l' loading · 'm' menu · 'g' in the scene · 'l e' failed (message in #s)
@@ -32,6 +32,8 @@ const out = path.resolve(opt('out', 'capture-out'));
 const [W, H] = opt('size', '2560x1440').split('x').map(Number);
 const nPoses = +opt('poses', 6), settle = +opt('settle', 2000), flight = +opt('flight', 0), nFrames = +opt('frames', 24), bench = +opt('bench', 0);
 const flightKey = opt('flight-key', 'KeyF');
+// --at x,y,z,yaw,pitch[;x,y,z,yaw,pitch...]: extra stills from free camera positions (flying), saved as at-<n>.png
+const at = opt('at', '');
 const chrome = opt('chrome', process.env.CHROME || '/usr/bin/google-chrome-stable');
 mkdirSync(out, { recursive: true });
 const profile = path.join(out, '.chrome-profile'); rmSync(profile, { recursive: true, force: true });
@@ -47,8 +49,7 @@ const ctx = browser.contexts()[0] || await browser.newContext();
 const page = await ctx.newPage();
 await page.setViewportSize({ width: W, height: H });
 await page.addInitScript({ path: path.join(here, 'grab-shim.js') });
-// --storage may repeat (e.g. a detail level and a time of day)
-const seeds = argv.flatMap((v, i) => (argv[i - 1] === '--storage' ? [v.split('=')] : []));
+const seeds = argv.flatMap((a, i) => (a === '--storage' && argv[i + 1] ? [argv[i + 1].split('=')] : []));
 if (seeds.length) await page.addInitScript((kv) => { if (!sessionStorage.seeded) { for (const [k, v] of kv) localStorage.setItem(k, v); sessionStorage.seeded = 1; } }, seeds);
 const run = { file: path.resolve(file), size: `${W}x${H}`, errors: [], warnings: [], shots: [] };
 page.on('console', (m) => { if (m.type() === 'error') run.errors.push(m.text()); else if (m.type() === 'warning') run.warnings.push(m.text()); });
@@ -78,6 +79,16 @@ for (let i = 1; i <= nPoses; i++) {
   const h = await hud(); run[`pose${i}`] = h;
   console.log(`pose ${i}: ${g.w}x${g.h}  ${h}`);
   if (g.w < W * 0.98) console.warn(`  pose ${i} rendered at ${g.w}x${g.h}, below the ${W}x${H} viewport (dynamic resolution) - use dev.html for full-res shots`);
+}
+if (at) {
+  let n = 0;
+  for (const spec of at.split(';')) {
+    const v = spec.split(',').map(Number);
+    await page.keyboard.press('Digit6'); await page.waitForTimeout(200);
+    await page.evaluate((v) => { for (let k = 0; k < 5; k++) window.__F[k] = v[k]; }, v);
+    await page.waitForTimeout(settle);
+    save(`at-${++n}.png`, await grab());
+  }
 }
 if (flight) {
   await page.keyboard.press(flightKey);
