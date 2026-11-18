@@ -603,6 +603,8 @@ fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
   // facade coordinates: along the wall and up it, in the mesh's own frame
   let fu = select(i.op.z, i.op.x, abs(on.z) > abs(on.x)); let fv = i.op.y; let wall = 1. - ss(.45, .7, abs(on.y));
   let wfade = 1. - ss(.25, .6, fwidth(fu / 3.4) + fwidth(fv / 3.3));
+  // rooms behind the glass show while a window is a dozen pixels or more across
+  let ifade = 1. - ss(.15, .5, fwidth(fu) + fwidth(fv));
   if (mat <= 1) {
     let gran = fm.g; let city = fm.b;
     var gr = mix(vec3f(.25, .23, .22), vec3f(.40, .36, .32), A.c) * (.6 + .6 * B.h);
@@ -639,11 +641,40 @@ fn floorRefl(p: vec3f, R: vec3f) -> vec3f {
       let bw = mix(2.6, 4.2, hs(sd * 11.)); let ww = mix(.2, .38, hs(sd * 13.));
       let wx = fract(fu / bw); let wy = fract(fv / 3.3); let flr = floor(fv / 3.3); let bay = floor(fu / bw);
       let win = step(.5 - ww, wx) * step(wx, .5 + ww) * step(.28, wy) * step(wy, .78) * step(1., flr) * wall * step(fv, i.m.w - 1.) * wfade;
-      let lit = step(select(.9, .45, NIGHT), hs(flr * 13.1 + bay * 7.7 + sd * 31.));
-      alb = mix(alb, vec3f(.08, .09, .10), win * .85);
+      let lit = step(select(.9, .55, NIGHT), hs(flr * 13.1 + bay * 7.7 + sd * 31.));
+      let frame = step(.5 - ww - .05, wx) * step(wx, .5 + ww + .05) * step(.24, wy) * step(wy, .82) * step(1., flr) * wall * step(fv, i.m.w - 1.) * wfade * (1. - win);
+      // window frames: white on some buildings, dark aluminium on others
+      alb = mix(alb, select(alb * 1.1 + .03, vec3f(.2, .2, .21), hs(sd * 37.) > .5), frame);
+      alb = mix(alb, vec3f(.05, .055, .06), win * .9);
       alb = mix(alb, alb * vec3f(.66, .65, .64), (1. - wfade) * wall * (.5 + .4 * hs(sd * 5.)));
-      emi = vec3f(1., .72, .42) * .25 * LIGHTS * win * lit + vec3f(1., .75, .45) * .05 * LIGHTS * (1. - wfade) * wall * f32(NIGHT);
-      alb = mix(alb, alb * vec3f(.6, .58, .56), ss(.6, .9, on.y));
+      // interior mapping: intersect the view ray with this window's room (side walls, floor, ceiling, back wall) in
+      // the building's own frame, so each window shows a room with depth that shifts with the viewpoint
+      let rdo = qrot(vec4f(-i.q.xyz, i.q.w), normalize(i.wp - g.cam.xyz));
+      let xw = abs(on.z) <= abs(on.x);
+      let rr3 = vec3f(select(rdo.x, rdo.z, xw), rdo.y, max(select(-rdo.z * sign(on.z), -rdo.x * sign(on.x), xw), .02));
+      let ru = fu - bay * bw; let rv = fv - flr * 3.3; let rid = bay * 1.7 + flr * 2.9 + sd * 5.;
+      let dep = mix(3.2, 6., hs(rid));
+      let tu = (select(0., bw, rr3.x > 0.) - ru) / (rr3.x + select(-1e-5, 1e-5, rr3.x >= 0.));
+      let tv = (select(0., 3.3, rr3.y > 0.) - rv) / (rr3.y + select(-1e-5, 1e-5, rr3.y >= 0.));
+      let tw = dep / rr3.z; let tt = min(tu, min(tv, tw));
+      let hp = vec3f(ru, rv, 0.) + rr3 * tt;
+      let wallC = mix(vec3f(.56, .5, .42), vec3f(.4, .45, .48), hs(rid + 3.)) * (.8 + .3 * hs(rid + 7.));
+      var rc = wallC * .85;
+      if (tw <= tu && tw <= tv) { rc = wallC * mix(1., mix(.35, .7, hs(rid + 11.)), step(hp.y, .85) * step(.2, fract(hp.x / bw + hs(rid)))); }
+      else if (tv < tu) { rc = select(vec3f(.72, .7, .66), mix(vec3f(.22, .15, .1), vec3f(.32, .3, .28), hs(rid + 13.)), rr3.y < 0.); }
+      let inner = rc * mix(1., .4, hp.z / dep);
+      let lamp = mix(mix(vec3f(1., .72, .45), vec3f(1., .9, .78), step(.55, hs(rid + 29.))), vec3f(.72, .84, 1.), step(.88, hs(rid + 31.))) * LIGHTS * .1 * (1. + .8 * ss(2.2, 3.3, hp.y)) * mix(1., .6, hp.z / dep);
+      var room = inner * (g.amb.xyz * .55 + lamp * lit);
+      // curtains drawn part way across some windows, glowing when the room is lit
+      let cur = step(.4, hs(rid + 17.)) * hs(rid + 19.) * .8;
+      room = mix(room, mix(vec3f(.62, .55, .45), vec3f(.5, .52, .56), hs(rid + 23.)) * (g.amb.xyz * .2 + lamp * lit * .9), step(1. - cur, abs(wx - .5) / ww));
+      emi = (room * ifade + vec3f(1., .66, .36) * .1 * lit * LIGHTS * (1. - ifade)) * win;
+      // beyond the window grid: the average of lit windows, varied per building so the far city is not one lit sheet
+      emi += vec3f(1., .7, .4) * .016 * LIGHTS * (.2 + 1.6 * hs(sd * 43.)) * (1. - wfade) * wall * f32(NIGHT);
+      // flat roofs: bare concrete, tar sheeting or white membrane
+      let rh = hs(sd * 41.);
+      let roof = select(select(vec3f(.44, .42, .38), vec3f(.15, .145, .14), rh > .55), vec3f(.6, .58, .54), rh > .85) * (.92 + .12 * C.c);
+      alb = mix(alb, roof, ss(.6, .9, on.y));
       gloss = mix(.08, .55, win);
     } else {
       let a1 = arcade(fu + 2.5, fv, 5., 5.2, .6) * wall * step(fv, 15.) * step(.5, i.m.w);
